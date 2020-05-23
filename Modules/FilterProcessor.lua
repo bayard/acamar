@@ -17,14 +17,35 @@ else
 		db = {
 			global =
 			{
+				-- score setting, user's score greater than this score will be rejected
 				score_threshold = 50,
-			},
-			profile =
-			{
+				-- hourly messages count threshold, greater than this count, users's behavior will be learned and pass to spam check process
+				hourly_threshold = 20,
+				-- penalty threshold, if player's message count lower than this in penalty window, the user will be removed from leanring process
+				penalty_threshold = 5,
+				-- players under watch but not yet meet conditions to be learned
+				prelearning = 
+				{
+					["player-8888-9999"] = {
+						-- hour# since os.time() start (00:00:00 UTC, January 1, 1970). hourwindow = os.time()//3600 (math.floor(os.time()//3600)
+						hourwindow = 441719,
+						-- message count during the hour time window, reset after next window
+						hourlycount = 71,
+						-- penalty window# since 1970. os.time//(penalty period seconds, 5 days=432000)
+						penaltywindow = 3681,
+						-- msgs in penalty window
+						penaltycount = 3,
+						-- if the user under leanring
+						learning = true,
+					},
+				},
+				-- plays addon is learning
 				plist = 
 				{
-					player_a =
+					["player-1111-2222"] =
 					{
+						-- name
+						name = "demo player",
 						-- spam score
 						score = 38,
 						-- query level using limited api, should performed at low freq
@@ -32,24 +53,44 @@ else
 						-- obtained by getuserinfobyguid
 						class = "warlock",
 						-- msgs table
+						-- bot or human, 0=human, 1=bot
+						bot = 0.9,
+						-- messages sent by the player
 						msgs = {
 							-- message hash
 							["9876543210"] =
 							{
 								-- msg length
 								len = 8,
+								-- msg, shoule be remove in release version
+								message = "i am spammer",
 								-- all non-meaningful chars or contain sick chars
 								spamlike = true,
+								-- icons
+								hasicon = true,
+								-- links
+								haslink = true,
 								-- first receive time
 								first_time = 11111111,
 								-- last sent time, first read should ignored after addon reload
 								last_time = 21111111,
 								-- total received time
 								total = 6668,
-								-- msgs which received at certain intervals
-								freq_spams = 888,
-								-- max requency msgs hourly
-								max_freq = 521,
+								-- receivals at regular period
+								freqspams = 888,
+								-- to check if message sent periodcally
+								lastperiod = 10,
+								-- time patterns
+								patterns = {
+									["20200520"] = {
+										["00"] = {
+											total = 89,
+										},
+										["01"] = {
+											total = 89,
+										},
+									},
+								},
 							},
 						},
 					},
@@ -475,18 +516,39 @@ function all_non_meaningful(utfstr)
 end
 
 -----------------------------------------------------
-
+-- load db
 function FilterProcessor:loaddb()
-	addon.db.profile.plist = addon.db.profile.plist or {}
+	addon.db.global.plist = addon.db.global.plist or {}
+	addon.db.global.prelearning = addon.db.global.prelearning or {}
 end
 
+-- when module initialing
 function FilterProcessor:OnInitialize()
+	addon:log("Filter db loaded.")
 	FilterProcessor:loaddb()
 end
 
+-- when new message arrived
+-- return result, score:
+-- result: false: let go, true:block the message
+-- score: the spam score
 function FilterProcessor:OnNewMessage(...)
 	local msgdata = ...
 
+	if msgdata.guid == nil or msgdata.guid == "" then
+		addon:log("Empty guid, skipped")
+		return false, 0
+	end
+
+	self:PreLearning(msgdata)
+	-- if the user is not talkative, skip learning the user
+	prelearning_user = addon.db.global.prelearning[msgdata.guid]
+	if( not addon.db.global.prelearning[msgdata.guid].learning ) then
+		-- addon:log("skip non-talkative user " .. msgdata.from .. ", msg=" .. msgdata.message)
+		return false, 0
+	end
+
+	-- learning the talkative user
 	self:LeaningMessage(msgdata)
 
 	local score = self:GetSpamScore()
@@ -496,6 +558,77 @@ function FilterProcessor:OnNewMessage(...)
 		return true, score
 	else
 		return false, 0
+	end
+end
+
+-- before message pass to leaning engine, user must meet the conditions which indicate the user is likely a spammer
+-- it's a measure to improve performance and save db space
+function FilterProcessor:PreLearning(msgdata)
+
+	-- get #hour since os.time() start since 1970
+	hournumber = math.floor(time()/3600)
+	-- get 5-days window number since 1970
+	penaltynumber = math.floor(time()/432000)
+	
+	local pdata = addon.db.global.prelearning[msgdata.guid]
+
+	--[[
+	if(string.find(msgdata.from, "北斗飞飞佳佳")) then
+		-- addon:log(table_to_string(pdata))
+	end
+	]]
+
+	-- If new sender
+	if(pdata == nil) then
+		pdata = {}
+		pdata = {
+			hourwindow = hournumber,
+			hourlycount = 1,
+			penaltywindow = penaltynumber,
+			penaltycount = 0,
+			learning = false,
+		}
+		addon.db.global.prelearning[msgdata.guid] = pdata
+	-- if existing sender
+	else
+		-- if user under learning, unlearned if user's message count lower than threshold in penaltywindow
+		if(pdata.learning) then
+			-- same penaltywindow
+			if(pdata.penaltywindow == penaltynumber) then
+				pdata.penaltycount = pdata.penaltycount + 1
+			-- new penaltywindow
+			else
+				-- if message sent by the user lower than threshold in previous penalty window
+				if pdata.penaltycount<addon.db.global.penalty_threshold then
+					-- reset penalty window and counter
+					pdata.penaltywindow = penaltynumber
+					pdata.penaltycount = 0
+					-- mark the user should be removed from learning process
+					pdata.learning = false
+				else
+					pdata.penaltywindow = penaltynumber
+					pdata.penaltycount = 1
+					addon:log(msgdata.from .. " behavior returns to normal.")
+				end
+			end
+		else
+			-- hour is the same with saved hour number, increase counter
+			if pdata.hourwindow == hournumber then
+				pdata.hourlycount = pdata.hourlycount + 1
+				addon:log(msgdata.from .. " pdata.hourlycount increase by 1: " .. tostring(pdata.hourlycount))
+			-- new hour number, reset counter
+			else
+				pdata.hourwindow = hournumber
+				pdata.hourlycount = 1
+			end
+
+			-- check hourly count beyond threshold, mark the user should be learned
+			if pdata.hourlycount>addon.db.global.hourly_threshold then
+				pdata.learning = true
+				addon:log(msgdata.from .. " seems to begain talkative, watching for further action.")
+			end
+		end
+
 	end
 end
 
@@ -513,21 +646,75 @@ function FilterProcessor:LeaningMessage(msgdata)
 end
 
 function FilterProcessor:BehaviorNewMessage(msgdata)
+	local locClass, engClass, locRace, engRace, gender, name, server = GetPlayerInfoByGUID(msgdata.guid)
 	local len, hassick, notmeaningful = self:GetMsgSpec(msgdata.message)
 
 	if(hassick or notmeaningful) then 
-		addon:log("spam:" .. tostring(spamlike) .. ", len=" .. len .. " [" .. 
+		addon:log("spamlike len=" .. len .. " [" .. 
 			msgdata.from .. "] channal=[" .. msgdata.chan_id_name .. 
 			"] hash=" .. hashstr .. ", msg=" .. msgdata.message)
 	end
 
-	user_metrics = {}
-	for k,v in pairs(addon.db.profile.plist) do
+	--[[
+	for k,v in pairs(addon.db.global.plist) do
 		-- if user data found
 		if( k == msgdata.from ) then
-			-- if(v[''])
+			pinfo = v
 		end
 	end
+	]]
+	local pinfo = addon.db.global.plist[msgdata.guid]
+	-- If new sender
+	if(pinfo == nil) then
+		pinfo = {}
+		pinfo = {
+			name = msgdata.from,
+			class = string.lower(engClass),
+			msgs = {},
+		}
+
+		local msgnode = {}
+		msgnode = {
+			len = len,
+			msg = msgdata.message, -- save message, for debug purpose, must be removed in release version
+			spamlike = hassick or notmeaningful,
+			first_time = msgdata.receive_time,
+			last_time = msgdata.receive_time,
+			total = 1,
+		}
+		addon:log("new sender: " .. msgdata.from)
+		pinfo.msgs[msgdata.hash] = msgnode;
+		addon.db.global.plist[msgdata.guid] = pinfo
+	-- if existing sender
+	else
+		local msgnode = pinfo.msgs[msgdata.hash]
+		-- if new message hash
+		if( msgnode==nil) then
+			msgnode = {}
+			msgnode = {
+				len = len,
+				msg = msgdata.message, -- save message, for debug purpose, must be removed in release version
+				spamlike = hassick or notmeaningful,
+				first_time = msgdata.receive_time,
+				last_time = msgdata.receive_time,
+				total = 1,
+			}
+			addon:log("existing sender, new msg: " .. msgdata.from)
+			pinfo.msgs[msgdata.hash] = msgnode;
+		-- if existing message
+		else
+			addon:log("existing sender, existing msg: " .. msgdata.from)
+			msgnode.last_time = msgdata.receive_time
+			msgnode.total = msgnode.total + 1
+
+			-- trigger score calculate at some conditions
+			if msgnode.total % 20 == 19 then
+			end
+		end
+		-- no need, modify msgnode and info will reflect to db
+		-- addon.db.global.plist[msgdata.guid] = pinfo
+	end
+
 end
 
 -- return: len, garbage
@@ -547,8 +734,43 @@ end
 ---------------------------
 -- test functions
 if addonName == nil then
+	local function serialize_local(obj)
+	    local lua = ""  
+	    local t = type(obj)  
+	    if t == "number" then  
+	        lua = lua .. obj  
+	    elseif t == "boolean" then  
+	        lua = lua .. tostring(obj)  
+	    elseif t == "string" then  
+	        lua = lua .. string.format("%q", obj)  
+	    elseif t == "table" then  
+	        lua = lua .. "{"  
+	        for k, v in pairs(obj) do  
+	            lua = lua .. "[" .. serialize_local(k) .. "]=" .. serialize_local(v) .. ", "  
+	        end  
+	        local metatable = getmetatable(obj)  
+	        if metatable ~= nil and type(metatable.__index) == "table" then  
+	            for k, v in pairs(metatable.__index) do  
+	                lua = lua .. "[" .. serialize_local(k) .. "]=" .. serialize_local(v) .. ", "  
+	            end  
+	        end  
+	        lua = lua .. "}"  
+	    elseif t == "nil" then  
+	        return nil  
+	    else  
+	        error("can not serialize a " .. t .. " type.")  
+	    end  
+	    return lua  
+	end
+
+	function table2string_local(tablevalue)
+	    local stringtable = serialize_local(tablevalue)
+	    return stringtable
+	end
+
 	function test1()
-		a='收G G G G G G G G G G ………出的MMM………骗子滚……收G G G G G G G G G G ………出的MMM………骗子滚……收G G G G G G G G G G ………出的MMM………骗子滚……'
+		a='收G G G G G G G G G G…'
+		a="*(&*&(*&&𓈠��"
 		print(a)
 		len, found = contains_sickchars(a)
 		print(len, " sick:", found)
@@ -556,7 +778,19 @@ if addonName == nil then
 		print(len, " non-meaningful:", found)
 	end
 
+	function test2()
+		t = os.time()
+		print(os.date("%c", t))
+		print(t/3600)
+		print(math.floor(t/3600))
+		print(math.floor(t/432000))
+		print(math.fmod(t, 3600))
+	end
 
-	test1()
+	function test3()
+		print(table2string_local(addon.db.global.prelearning))
+	end
+
+	test3()
 end
 -- EOF
