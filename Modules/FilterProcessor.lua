@@ -76,13 +76,13 @@ else
 								first_time = 11111111,
 								-- last sent time, first read should ignored after addon reload
 								last_time = 21111111,
-								-- samplings. {msg_count (1), period_count (2), last_period (3)}
+								-- samplings. {msg_count (1), period_count (2), last_chan_num(3), last_period (4)}
 								samplings = {
-									all_time = { 8, 6, 11, },
+									all_time = { 8, 6, 2, 11},
 									-- last hour sampling, 30x2min
 									last_hour = {
-										["0"] = { 8, 6, 11, },
-										["1"] = { 8, 7, 11, },
+										["0"] = { 8, 6, 2, 11},
+										["1"] = { 8, 7, 2, 10},
 									},
 								},
 							},
@@ -595,6 +595,7 @@ function FilterProcessor:PreLearning(msgdata)
 	if(pdata == nil) then
 		pdata = {}
 		pdata = {
+			name = msgdata.from,  -- for debug purpose, removed in release version to save db space
 			hourwindow = hournumber,
 			hourlycount = 1,
 			penaltywindow = penaltynumber,
@@ -611,24 +612,24 @@ function FilterProcessor:PreLearning(msgdata)
 				pdata.penaltycount = pdata.penaltycount + 1
 			-- new penaltywindow
 			else
-				-- if message sent by the user lower than threshold in previous penalty window
+				-- if messages count sent by the user lower than threshold in previous penalty window
 				if pdata.penaltycount<addon.db.global.penalty_threshold then
 					-- reset penalty window and counter
 					pdata.penaltywindow = penaltynumber
 					pdata.penaltycount = 0
 					-- mark the user should be removed from learning process
 					pdata.learning = false
+					addon:log(msgdata.from .. " removed from the watching list.")
 				else
 					pdata.penaltywindow = penaltynumber
 					pdata.penaltycount = 1
-					addon:log(msgdata.from .. " behavior returns to normal.")
 				end
 			end
 		else
 			-- hour is the same with saved hour number, increase counter
 			if pdata.hourwindow == hournumber then
 				pdata.hourlycount = pdata.hourlycount + 1
-				addon:log(msgdata.from .. " pdata.hourlycount increase by 1: " .. tostring(pdata.hourlycount))
+				--addon:log(msgdata.from .. " pdata.hourlycount increase by 1: " .. tostring(pdata.hourlycount))
 			-- new hour number, reset counter
 			else
 				pdata.hourwindow = hournumber
@@ -638,7 +639,7 @@ function FilterProcessor:PreLearning(msgdata)
 			-- check hourly count beyond threshold, mark the user should be learned
 			if pdata.hourlycount>addon.db.global.hourly_threshold then
 				pdata.learning = true
-				addon:log(msgdata.from .. " seems to begain talkative, watching for further action.")
+				addon:log(msgdata.from .. " seems to begain talkative, added to the watching list.")
 			end
 		end
 
@@ -654,7 +655,9 @@ end
 function FilterProcessor:LeaningMessage(msgdata)
 	--addon:log("leaning [" .. msgdata.from .. "] channal=[" .. msgdata.chan_id_name .. "] msg=" .. msgdata.message)
 	--local md5str = md5.sumhexa(msgdata.message)
-	hashstr = StringHash(msgdata.message)
+
+	-- using channel number + hash of message as message key
+	hashstr =  msgdata.chan_num .. ":" .. StringHash(msgdata.message)
 	msgdata.hash = hashstr
 
 	self:BehaviorNewMessage(msgdata)
@@ -678,8 +681,8 @@ function FilterProcessor:BehaviorNewMessage(msgdata)
 			msgs = {},
 		}
 
-	-- get or set msgnode
-	local msgnode = addon.db.global.plist[msgdata.guid].msgs[msgdata.hash] or {
+	-- get or set messages node
+	addon.db.global.plist[msgdata.guid].msgs[msgdata.hash] = addon.db.global.plist[msgdata.guid].msgs[msgdata.hash] or {
 			len = len,
 			msg = msgdata.message, -- save message, for debug purpose, must be removed in release version
 			spamlike = hassick or notmeaningful,
@@ -690,28 +693,28 @@ function FilterProcessor:BehaviorNewMessage(msgdata)
 			periodspams = 0,
 			lastperiod = 0,
 			samplings = {
-				all_time = {},
+				all_time = {0, 0, msgdata.chan_num, nil},
 				last_hour = {},
 			},
 		}
 
 	-- perform all samplings
-	self:PerformAllSampling(msgdata, msgnode)
+	self:PerformAllSampling(msgdata, addon.db.global.plist[msgdata.guid].msgs[msgdata.hash])
 
 	-- update last_time to message receival time
-	msgnode.last_time = msgdata.receive_time
+	addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].last_time = msgdata.receive_time
 end
 
 -- perform all sampling
 function FilterProcessor:PerformAllSampling(msgdata, msgnode)
-	-- do sampling to get more metrics data
-
+	-- addon:log("Sampling message: " .. msgdata.message)
 	-- full time sampling
 	self:Sampling(msgdata, msgnode, msgnode.samplings.all_time)
 
+	-- do sampling of time frame to get more metrics data
 	-- set key as (minute number / 2) results in 30 keys in 60mins
 	local key = tostring(math.floor(date("%M", msgdata.receive_time)/2))
-	msgnode.samplings.last_hour[key] = msgnode.samplings.last_hour[key] or {0, 0, nil}
+	msgnode.samplings.last_hour[key] = msgnode.samplings.last_hour[key] or {0, 0, msgdata.chan_num, nil}
 
 	self:Sampling(msgdata, msgnode, msgnode.samplings.last_hour[key])
 end
@@ -721,19 +724,22 @@ end
 function FilterProcessor:Sampling(msgdata, msgnode, samplingnode)
 	local diff_between_msgs = msgdata.receive_time - msgnode.last_time
 
-	if samplingnode[3] ~= nil then
-		local derivation = math.abs(diff_between_msgs - samplingnode[3])
+	if samplingnode[4] ~= nil then
+		local derivation = math.abs(diff_between_msgs - samplingnode[4])
 		
 		-- find periodcal message
-		if( derivation < addon.db.global.deriv_threshold ) then
+		if( (msgdata.chan_num == samplingnode[3]) and (derivation < addon.db.global.deriv_threshold) ) then
 			-- increase the periodcally spam counter by 1
-			addon:log("[Sampling] found dup messages with period of " .. derivation .. " seconds")
+			addon:log("[Sampling] found dup messages, diff=" .. derivation .. "/" .. diff_between_msgs .. " seconds: [" 
+				.. msgdata.chan_num .. "][" .. msgdata.from .. "] " .. msgdata.message )
 			samplingnode[2] = samplingnode[2] + 1
 		end
 	end
 
 	-- set lastperiod to latest time diff
-	samplingnode[3] = diff_between_msgs
+	samplingnode[4] = diff_between_msgs
+	-- set channel number
+	samplingnode[3] = msgdata.chan_num
 	-- inrease msg counter by 1
 	samplingnode[1] = samplingnode[1] + 1
 end

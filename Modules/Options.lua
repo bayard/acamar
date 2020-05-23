@@ -12,7 +12,7 @@ Options.defaults = {
 		-- current set threshold of spam filtering
 		score_threshold = 50,
 		-- beyond this trigger learning (1 hour)
-		hourly_threshold = 30,
+		hourly_threshold = 20,
 		-- low than this trigger remove from leanring (5 days)
 		penalty_threshold = 20,
 		-- messages received time diff lower than this consider as periodcally (mostly spams)
