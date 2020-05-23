@@ -111,7 +111,7 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
         u = u,
         line_id = line_id,
         guid = guid,
-        receive_time = GetTime(),
+        receive_time = time(),
     }    
 
     --if lastMsg ~= message then    

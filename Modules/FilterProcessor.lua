@@ -23,6 +23,8 @@ else
 				hourly_threshold = 20,
 				-- penalty threshold, if player's message count lower than this in penalty window, the user will be removed from leanring process
 				penalty_threshold = 5,
+				-- time derivation threshold of period 
+				deriv_threshold = 2,
 				-- players under watch but not yet meet conditions to be learned
 				prelearning = 
 				{
@@ -74,21 +76,13 @@ else
 								first_time = 11111111,
 								-- last sent time, first read should ignored after addon reload
 								last_time = 21111111,
-								-- total received time
-								total = 6668,
-								-- receivals at regular period
-								freqspams = 888,
-								-- to check if message sent periodcally
-								lastperiod = 10,
-								-- time patterns
-								patterns = {
-									["20200520"] = {
-										["00"] = {
-											total = 89,
-										},
-										["01"] = {
-											total = 89,
-										},
+								-- samplings. {msg_count (1), period_count (2), last_period (3)}
+								samplings = {
+									all_time = { 8, 6, 11, },
+									-- last hour sampling, 30x2min
+									last_hour = {
+										["0"] = { 8, 6, 11, },
+										["1"] = { 8, 7, 11, },
 									},
 								},
 							},
@@ -459,7 +453,7 @@ local non_meaningful_text_chars ={
 -- return: len, garbage
 -- len: length of string (in utf8 encoding)
 -- garbage: true/false, true if contains garbage chars
-function contains_sickchars(utfstr)
+local function contains_sickchars(utfstr)
 	if(utfstr == nil or utfstr == "") then
 		return 0, false
 	end
@@ -487,7 +481,7 @@ end
 -- return: len, non_meaningful
 -- len: length of string (in utf8 encoding)
 -- non_meaningful: true/false, true if string has no meanful char
-function all_non_meaningful(utfstr)
+local function all_non_meaningful(utfstr)
 	if(utfstr == nil or utfstr == "") then
 		return 0, true
 	end
@@ -515,7 +509,26 @@ function all_non_meaningful(utfstr)
 	return len, true
 end
 
+-- if message contains rt# icon
+local function find_icon(str)
+	local pos = string.find(str, "{rt%d}")
+	if pos ~= nil then
+		return true
+	end
+	return false
+end
+
+local function find_link(str)
+	local pos = string.find(str, "|Hitem:%d+:.-|h.-|h")
+	if pos ~= nil then
+		return true
+	end
+	return false
+end
+
 -----------------------------------------------------
+----- Filter functions
+
 -- load db
 function FilterProcessor:loaddb()
 	addon.db.global.plist = addon.db.global.plist or {}
@@ -566,9 +579,9 @@ end
 function FilterProcessor:PreLearning(msgdata)
 
 	-- get #hour since os.time() start since 1970
-	hournumber = math.floor(time()/3600)
+	hournumber = math.floor(msgdata.receive_time / 3600)
 	-- get 5-days window number since 1970
-	penaltynumber = math.floor(time()/432000)
+	penaltynumber = math.floor(msgdata.receive_time / 432000)
 	
 	local pdata = addon.db.global.prelearning[msgdata.guid]
 
@@ -632,10 +645,12 @@ function FilterProcessor:PreLearning(msgdata)
 	end
 end
 
+-- get spam score for the user
 function FilterProcessor:GetSpamScore()
 	return 36
 end
 
+-- learn the message and store metrics data into db
 function FilterProcessor:LeaningMessage(msgdata)
 	--addon:log("leaning [" .. msgdata.from .. "] channal=[" .. msgdata.chan_id_name .. "] msg=" .. msgdata.message)
 	--local md5str = md5.sumhexa(msgdata.message)
@@ -645,9 +660,10 @@ function FilterProcessor:LeaningMessage(msgdata)
 	self:BehaviorNewMessage(msgdata)
 end
 
+-- analysis of user messaging behavior
 function FilterProcessor:BehaviorNewMessage(msgdata)
 	local locClass, engClass, locRace, engRace, gender, name, server = GetPlayerInfoByGUID(msgdata.guid)
-	local len, hassick, notmeaningful = self:GetMsgSpec(msgdata.message)
+	local len, hassick, notmeaningful, hasicon, haslink = self:GetMsgSpec(msgdata.message)
 
 	if(hassick or notmeaningful) then 
 		addon:log("spamlike len=" .. len .. " [" .. 
@@ -655,66 +671,71 @@ function FilterProcessor:BehaviorNewMessage(msgdata)
 			"] hash=" .. hashstr .. ", msg=" .. msgdata.message)
 	end
 
-	--[[
-	for k,v in pairs(addon.db.global.plist) do
-		-- if user data found
-		if( k == msgdata.from ) then
-			pinfo = v
-		end
-	end
-	]]
-	local pinfo = addon.db.global.plist[msgdata.guid]
-	-- If new sender
-	if(pinfo == nil) then
-		pinfo = {}
-		pinfo = {
+	-- get or set plist data 
+	addon.db.global.plist[msgdata.guid] = addon.db.global.plist[msgdata.guid] or {
 			name = msgdata.from,
 			class = string.lower(engClass),
 			msgs = {},
 		}
 
-		local msgnode = {}
-		msgnode = {
+	-- get or set msgnode
+	local msgnode = addon.db.global.plist[msgdata.guid].msgs[msgdata.hash] or {
 			len = len,
 			msg = msgdata.message, -- save message, for debug purpose, must be removed in release version
 			spamlike = hassick or notmeaningful,
+			hasicon = hasicon,
+			haslink = haslink,
 			first_time = msgdata.receive_time,
 			last_time = msgdata.receive_time,
-			total = 1,
+			periodspams = 0,
+			lastperiod = 0,
+			samplings = {
+				all_time = {},
+				last_hour = {},
+			},
 		}
-		addon:log("new sender: " .. msgdata.from)
-		pinfo.msgs[msgdata.hash] = msgnode;
-		addon.db.global.plist[msgdata.guid] = pinfo
-	-- if existing sender
-	else
-		local msgnode = pinfo.msgs[msgdata.hash]
-		-- if new message hash
-		if( msgnode==nil) then
-			msgnode = {}
-			msgnode = {
-				len = len,
-				msg = msgdata.message, -- save message, for debug purpose, must be removed in release version
-				spamlike = hassick or notmeaningful,
-				first_time = msgdata.receive_time,
-				last_time = msgdata.receive_time,
-				total = 1,
-			}
-			addon:log("existing sender, new msg: " .. msgdata.from)
-			pinfo.msgs[msgdata.hash] = msgnode;
-		-- if existing message
-		else
-			addon:log("existing sender, existing msg: " .. msgdata.from)
-			msgnode.last_time = msgdata.receive_time
-			msgnode.total = msgnode.total + 1
 
-			-- trigger score calculate at some conditions
-			if msgnode.total % 20 == 19 then
-			end
+	-- perform all samplings
+	self:PerformAllSampling(msgdata, msgnode)
+
+	-- update last_time to message receival time
+	msgnode.last_time = msgdata.receive_time
+end
+
+-- perform all sampling
+function FilterProcessor:PerformAllSampling(msgdata, msgnode)
+	-- do sampling to get more metrics data
+
+	-- full time sampling
+	self:Sampling(msgdata, msgnode, msgnode.samplings.all_time)
+
+	-- set key as (minute number / 2) results in 30 keys in 60mins
+	local key = tostring(math.floor(date("%M", msgdata.receive_time)/2))
+	msgnode.samplings.last_hour[key] = msgnode.samplings.last_hour[key] or {0, 0, nil}
+
+	self:Sampling(msgdata, msgnode, msgnode.samplings.last_hour[key])
+end
+
+-- Sampling last hour to store period and message count data into db
+-- samplingnode array: {msg_count (1), period_count (2), last_period (3)}
+function FilterProcessor:Sampling(msgdata, msgnode, samplingnode)
+	local diff_between_msgs = msgdata.receive_time - msgnode.last_time
+
+	if samplingnode[3] ~= nil then
+		local derivation = math.abs(diff_between_msgs - samplingnode[3])
+		
+		-- find periodcal message
+		if( derivation < addon.db.global.deriv_threshold ) then
+			-- increase the periodcally spam counter by 1
+			addon:log("[Sampling] found dup messages with period of " .. derivation .. " seconds")
+			samplingnode[2] = samplingnode[2] + 1
 		end
-		-- no need, modify msgnode and info will reflect to db
-		-- addon.db.global.plist[msgdata.guid] = pinfo
 	end
 
+	-- set lastperiod to latest time diff
+	samplingnode[3] = diff_between_msgs
+	-- inrease msg counter by 1
+	samplingnode[1] = samplingnode[1] + 1
 end
 
 -- return: len, garbage
@@ -727,8 +748,10 @@ function FilterProcessor:GetMsgSpec(message)
 
 	len, hassick = contains_sickchars(message)
 	_, notmeaningful = all_non_meaningful(message)
+	hasicon = find_icon(message)
+	haslink = find_link(message)
 
-	return len, hassick, notmeaningful
+	return len, hassick, notmeaningful, hasicon, haslink
 end
 
 ---------------------------
@@ -788,9 +811,15 @@ if addonName == nil then
 	end
 
 	function test3()
-		print(table2string_local(addon.db.global.prelearning))
+		--print(table2string_local(addon.db.global.prelearning))
+		print(find_link("|cff0070dd|Hitem:13396::::::::60:::::::|h[斯库尔的苍白之触]|h|r"))
 	end
 
-	test3()
+	function test4()
+		a = os.time()-0
+		print(math.floor(os.date("%M", a)/2))
+	end
+
+	test4()
 end
 -- EOF
