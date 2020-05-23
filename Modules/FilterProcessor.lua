@@ -24,7 +24,7 @@ else
 				-- penalty threshold, if player's message count lower than this in penalty window, the user will be removed from leanring process
 				penalty_threshold = 5,
 				-- time derivation threshold of period 
-				deriv_threshold = 2,
+				deriv_threshold = 0.1,
 				-- players under watch but not yet meet conditions to be learned
 				prelearning = 
 				{
@@ -709,7 +709,7 @@ end
 function FilterProcessor:PerformAllSampling(msgdata, msgnode)
 	-- addon:log("Sampling message: " .. msgdata.message)
 	-- full time sampling
-	self:Sampling(msgdata, msgnode, msgnode.samplings.all_time)
+	self:Sampling(msgdata, msgnode, msgnode.samplings.all_time, true)
 
 	-- do sampling of time frame to get more metrics data
 	-- set key as (minute number / 2) results in 30 keys in 60mins
@@ -721,17 +721,21 @@ end
 
 -- Sampling last hour to store period and message count data into db
 -- samplingnode array: {msg_count (1), period_count (2), last_period (3)}
-function FilterProcessor:Sampling(msgdata, msgnode, samplingnode)
+function FilterProcessor:Sampling(msgdata, msgnode, samplingnode, alltime)
 	local diff_between_msgs = msgdata.receive_time - msgnode.last_time
 
 	if samplingnode[4] ~= nil then
 		local derivation = math.abs(diff_between_msgs - samplingnode[4])
+		local devri_per = derivation/diff_between_msgs
 		
 		-- find periodcal message
-		if( (msgdata.chan_num == samplingnode[3]) and (derivation < addon.db.global.deriv_threshold) ) then
+		if( (msgdata.chan_num == samplingnode[3]) and (devri_per < addon.db.global.deriv_threshold) ) then
 			-- increase the periodcally spam counter by 1
-			addon:log("[Sampling] found dup messages, diff=" .. derivation .. "/" .. diff_between_msgs .. " seconds: [" 
-				.. msgdata.chan_num .. "][" .. msgdata.from .. "] " .. msgdata.message )
+			if(alltime) then
+				addon:log("[Sampling] dup and spam, devria=" .. math.floor(devri_per*100, 2) .. "%% " .. ' [' ..
+					diff_between_msgs .. "] seconds: [" .. msgdata.chan_num .. 
+					"][" .. msgdata.from .. "] " .. msgdata.message )
+			end
 			samplingnode[2] = samplingnode[2] + 1
 		end
 	end
@@ -824,6 +828,7 @@ if addonName == nil then
 	function test4()
 		a = os.time()-0
 		print(math.floor(os.date("%M", a)/2))
+		print(math.floor(3.12345*100, 2)/100)
 	end
 
 	test4()

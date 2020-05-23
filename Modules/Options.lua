@@ -16,7 +16,7 @@ Options.defaults = {
 		-- low than this trigger remove from leanring (5 days)
 		penalty_threshold = 20,
 		-- messages received time diff lower than this consider as periodcally (mostly spams)
-		deriv_threshold = 2,
+		deriv_threshold = 0.1,
 		plist = {},
 		prelearning = {},
 		fontsize = 12.8,
