@@ -16,9 +16,10 @@ addon.METADATA = {
 }
 
 -- printing debug info
-function addon:log(...)
+function addon:log(info, release)
 	if addon.isDebug then
-		addon:Printf(...)
+		-- addon:Printf(...)
+		print("|cFF00cccc" .. addonName .. " |cFF00cc00" .. info)
 	end
 end
 

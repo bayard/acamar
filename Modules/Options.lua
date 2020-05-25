@@ -8,18 +8,34 @@ local WidgetLists = AceGUIWidgetLSMlists
 --  Options
 Options.defaults = {
 	global = {
+		-- if learning engine on or off
 		globalswitch = true,
+		-- analysis run params
+		analysis = {
+			interval = 300,
+		},
 		-- current set threshold of spam filtering
-		score_threshold = 50,
+		-- 0: off, 1: on, 0-1: the greater the more strict
+		score_threshold = 0.5,
 		-- beyond this trigger learning (1 hour)
-		hourly_threshold = 20,
+		hourly_threshold = 0,
+		-- beyond this trigger learning after hourly check false
+		daily_threshold = 50,
 		-- low than this trigger remove from leanring (5 days)
 		penalty_threshold = 20,
 		-- messages received time diff lower than this consider as periodcally (mostly spams)
-		deriv_threshold = 0.1,
+		deviation_threshold = 0.25,
+		-- learning list
 		plist = {},
+		-- pre-learning list
 		prelearning = {},
+		-- blacklist
+		bl = {},
+		-- whitelist
+		wl = {},
+		-- font size
 		fontsize = 12.8,
+		-- ui window save status
 		ui = {
 			height = 50,
 			top = 417,

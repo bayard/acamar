@@ -221,7 +221,7 @@ local PaneBackdrop  = {
 }
 
 local function Constructor()
-	local minWidth = 88
+	local minWidth = 80
 	local minHeight = 50
 
 	local frame = CreateFrame("Frame", nil, UIParent)

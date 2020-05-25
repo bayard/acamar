@@ -162,7 +162,7 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
 
             prevLineID, modifyMsg, block = line_id, nil, nil
 
-            --scan customized channels
+            --scan customized channels like bigfoot
             local trimmedPlayer = Ambiguate(from, "none")
             if event == "CHAT_MSG_CHANNEL" and (chan_id == 0 or type(chan_id) ~= "number") then 
                 -- Forward message to processor to study the behavior of sender and classfy spam level of message and sender
@@ -201,7 +201,38 @@ end
 function AcamarMessage:OnInitialize()
     addon:Printf("AcamarMessage:OnInitialize()")
 end
+--[[
+        "CHAT_MSG_ACHIEVEMENT",
+        "CHAT_MSG_BATTLEGROUND",
+        "CHAT_MSG_BATTLEGROUND_LEADER",
+        "CHAT_MSG_CHANNEL",
+        "CHAT_MSG_CHANNEL_JOIN",
+        "CHAT_MSG_CHANNEL_LEAVE",
+        "CHAT_MSG_CHANNEL_NOTICE_USER",
+        "CHAT_MSG_EMOTE",
+        "CHAT_MSG_GUILD",
+        "CHAT_MSG_GUILD_ACHIEVEMENT",
+        "CHAT_MSG_INSTANCE_CHAT",
+        "CHAT_MSG_INSTANCE_CHAT_LEADER",
+        "CHAT_MSG_MONSTER_EMOTE",
+        "CHAT_MSG_MONSTER_PARTY",
+        "CHAT_MSG_MONSTER_SAY",
+        "CHAT_MSG_MONSTER_WHISPER",
+        "CHAT_MSG_MONSTER_YELL",
+        "CHAT_MSG_OFFICER",
+        "CHAT_MSG_PARTY",
+        "CHAT_MSG_RAID",
+        "CHAT_MSG_RAID_LEADER",
+        "CHAT_MSG_RAID_WARNING",
+        "CHAT_MSG_SAY",
+        "CHAT_MSG_SYSTEM",
+        "CHAT_MSG_TEXT_EMOTE",
+        "CHAT_MSG_WHISPER",
+        "CHAT_MSG_YELL",
+]]
 
+-- only listen to events with spams
+-- don't filter messages in RAID, GUILD, and others
 local chatEvents = (
     {
         "CHAT_MSG_ACHIEVEMENT",
@@ -230,11 +261,10 @@ local chatEvents = (
         "CHAT_MSG_SYSTEM",
         "CHAT_MSG_TEXT_EMOTE",
         "CHAT_MSG_WHISPER",
-        "CHAT_MSG_YELL"
+        "CHAT_MSG_YELL",
     })
     
 function AcamarMessage:HookOn()
-    
     addon:log("Hooking messages")
 
     for key, value in pairs (chatEvents) do
@@ -316,6 +346,17 @@ function table2string(tablevalue)
     return stringtable
 end
 
+function copy_table(settings)
+    local copy = {};
+    for k, v in pairs(settings) do
+        if ( type(v) == "table" ) then
+            copy[k] = CopyTable(v);
+        else
+            copy[k] = v;
+        end
+    end
+    return copy;
+end
 -----------
 -- unused
 --[[

@@ -29,7 +29,6 @@ function AcamarGUI:Load_Ace_Custom()
   	-- When settings button clicked
 	frame:SetCallback("OnSettingsClick",
 		function(widget) 
-      		addon:KeywordUI_OpenList();
 		end)
   
   	-- When power button clicked

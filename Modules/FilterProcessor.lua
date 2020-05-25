@@ -1,5 +1,12 @@
 local addonName, addon = ...
 local FilterProcessor, L, AceGUI, private
+
+local MSG_COUNT_IDX = 1
+local PERIOD_COUNT_IDX = 2
+local CHAN_NUM_IDX = 3
+local DEVIATION_AVG_IDX = 4
+local LAST_PERIOD_IDX = 5
+
 if(addonName ~= nil) then
 	FilterProcessor = addon:NewModule("FilterProcessor", "AceEvent-3.0", "AceHook-3.0", "AceConsole-3.0")
 	L = LibStub("AceLocale-3.0"):GetLocale(addonName)
@@ -17,14 +24,18 @@ else
 		db = {
 			global =
 			{
+				-- analysis run params
+				analysis = {
+					interval = 10,
+				},
 				-- score setting, user's score greater than this score will be rejected
-				score_threshold = 50,
+				score_threshold = 0.5,
 				-- hourly messages count threshold, greater than this count, users's behavior will be learned and pass to spam check process
 				hourly_threshold = 20,
 				-- penalty threshold, if player's message count lower than this in penalty window, the user will be removed from leanring process
 				penalty_threshold = 5,
-				-- time derivation threshold of period 
-				deriv_threshold = 0.1,
+				-- time deviation threshold of period 
+				deviation_threshold = 0.1,
 				-- players under watch but not yet meet conditions to be learned
 				prelearning = 
 				{
@@ -33,6 +44,10 @@ else
 						hourwindow = 441719,
 						-- message count during the hour time window, reset after next window
 						hourlycount = 71,
+						-- day# since os.time() start (00:00:00 UTC, January 1, 1970). daywindow = os.time()//86400 (math.floor(os.time()//86400)
+						daywindow = 11000,
+						-- message count during the day time window, reset after next window
+						dailycount = 238,
 						-- penalty window# since 1970. os.time//(penalty period seconds, 5 days=432000)
 						penaltywindow = 3681,
 						-- msgs in penalty window
@@ -76,17 +91,36 @@ else
 								first_time = 11111111,
 								-- last sent time, first read should ignored after addon reload
 								last_time = 21111111,
-								-- samplings. {msg_count (1), period_count (2), last_chan_num(3), last_period (4)}
+								--             消息数         周期特征消息数      频道号         偏差总平均         上次的周期                  
+								-- samplings. {msg_count (1), period_count (2), chan_num(3),  deviation_avg(4), last_period (5),}
 								samplings = {
-									all_time = { 8, 6, 2, 11},
+									all_time = { 8, 6, 2, -0.2, 11,},
 									-- last hour sampling, 30x2min
 									last_hour = {
-										["0"] = { 8, 6, 2, 11},
-										["1"] = { 8, 7, 2, 10},
+										["0"] = { 8, 6, 2, 3, 11,},
+										["1"] = { 8, 7, 2, -2.6, 12,},
+									},
+									last_week = {
+										["0"] = { 61, 38, 2, -1.8, 11,},
+										["1"] = { 70, 60, 2, 2.1, 10,},
 									},
 								},
 							},
 						},
+					},
+				},
+				-- blacklist, learned and classified as bot and heavy spammer, 
+				-- block and omit learning process to improve performance and save db space
+				bl = {
+					["player-9999-9999"] = {
+						create_time = 119871283,
+					},
+				},
+				-- whitelist, learned and classified as normal user, 
+				-- permit and omit learning process to improve performance and save db space
+				wl = {
+					["player-7777-7777"] = {
+						create_time = 119871283,
 					},
 				},
 			},
@@ -538,6 +572,9 @@ end
 -- when module initialing
 function FilterProcessor:OnInitialize()
 	addon:log("Filter db loaded.")
+
+	-- set analysis timestamp flag
+	self.analysis_last_run = time()
 	FilterProcessor:loaddb()
 end
 
@@ -552,6 +589,9 @@ function FilterProcessor:OnNewMessage(...)
 		addon:log("Empty guid, skipped")
 		return false, 0
 	end
+
+	-- doing analysis if time out
+	self:Analysis()
 
 	self:PreLearning(msgdata)
 	-- if the user is not talkative, skip learning the user
@@ -574,12 +614,331 @@ function FilterProcessor:OnNewMessage(...)
 	end
 end
 
+
+-- analysis the data and calculate blacklist, whitelist and scores
+-- and clean database
+function FilterProcessor:Analysis()
+	local timelapsed = time()-self.analysis_last_run
+	if timelapsed<addon.db.global.analysis.interval then
+		return
+	end
+
+	-- update analysis timestamp flag
+	self.analysis_last_run = time()
+
+	-- compute spam scores using threaded process to avoid blocking current thread
+	self:SetupAnalysisTimer()
+
+end
+
+--[[
+	local MSG_COUNT_IDX = 1
+	local PERIOD_COUNT_IDX = 2
+	local CHAN_NUM_IDX = 3
+	local DEVIATION_AVG_IDX = 4
+	local LAST_PERIOD_IDX = 5
+]]
+
+local analysis_perf = {
+	-- min threshold of hourly message rate to be included into spam score calculation
+	inc_min_hourly_thres = 20,
+	inc_min_bot_thres = 0.2,
+	-- min reconds to trigger calc of spam score
+	min_all_time_thres = 100,
+	-- period message percentage vs spam score for hourly
+	spam_perc_score_hour = {
+		{0.9, 1,},
+		{0.8, 0.9,},
+		{0.7, 0.6,},
+		{0.6, 0.5,},
+		{0.5, 0.3,},
+		{0.4, 0.2,},
+		{0.3, 0.1,},
+		{0.2, 0.05,},
+		{0.1, 0.01,},
+		{0, 0,},
+	},
+	-- period message percentage vs spam score for weekly
+	spam_perc_score_week = {
+		{0.9, 1,},
+		{0.8, 0.9,},
+		{0.7, 0.6,},
+		{0.6, 0.4,},
+		{0.5, 0.3,},
+		{0.4, 0.2,},
+		{0.3, 0.1,},
+		{0.2, 0.05,},
+		{0.1, 0.05,},
+		{0, 0,},
+	},
+	-- period message percentage vs spam score for all time
+	spam_perc_score_all_time = {
+		{0.9, 3,},
+		{0.8, 2,},
+		{0.7, 1.6,},
+		{0.6, 1.3,},
+		{0.5, 1.1,},
+		{0.4, 0.4,},
+		{0.3, 0.2,},
+		{0.2, 0.1,},
+		{0.1, 0.05,},
+		{0, 0,},
+	},
+	-- bot to spam score mapping
+	bot_to_spam_score = {
+		{100, 10,},
+		{50, 5,},
+		{10, 3,},
+		{5, 2,},
+		{2, 1.5,},
+		{1, 1,},
+		{0.8, 0.6,},
+		{0.5, 0.3,},
+		{0.3, 0.2,},
+		{0.2, 0.1,},
+		{0.1, 0.05,},
+		{0, 0,},
+	},
+	-- hourly rate to score mapping
+	hourly_to_score = {
+		{1000,10,},
+		{500,5,},
+		{300,3,},
+		{250,2.5,},
+		{200,2,},
+		{150,1.5,},
+		{100,1.2,},
+		{80,1,},
+		{70,0.8,},
+		{60,0.5,},
+		{50,0.3,},
+		{40,0.2,},
+		{30,0.1,},
+		{20,0.05,},
+		{10,0,},
+		{0,0,},
+	},
+	-- links to score mapping
+	links_to_score = {
+		{1000,5,},
+		{500,4,},
+		{300,2,},
+		{200,1,},
+		{100,0.6,},
+		{50,0.5,},
+		{30,0.2},
+		{20,0.1,},
+		{10,0.05,},
+		{0,0,},
+	},
+	-- icons to score mapping
+	icons_to_score = {
+		{1000,5,},
+		{500,4,},
+		{300,2,},
+		{200,1,},
+		{100,0.6,},
+		{50,0.5,},
+		{30,0.2},
+		{20,0.1,},
+		{10,0.05,},
+		{0,0,},
+	},
+}
+
+function timer_analysis_func()
+	addon:log("Perform analysis...")
+
+	-- debug
+	--[[
+	local adata = copy_table(addon.db.global.analysis)
+	addon:log("adata:" .. table_to_string(adata))
+	adata.testdata_copytable = 1
+	local bdata = addon.db.global.analysis
+	addon:log("bdata:" .. table_to_string(bdata))
+	]]
+
+	local analysis_info = {}
+
+	for kp, vp in pairs(addon.db.global.plist) do
+		local pfeature = {
+			name = vp.name,
+			score = 0, -- total score
+			bot = 0, -- bot score
+			-- 2-mins in an hour
+			short = {
+				score = 0, -- 15/30, should greater than 1 if has more than 15 periodcal message records over 30 total records
+			},
+			-- daily in a week
+			medium = {
+				score = 0, -- 3/7
+			},
+			-- all time
+			long = {
+				score = 0, -- see spam_perc_score_all_time
+			},
+			-- count of messages with icon
+			icons = 0,
+			-- count of messages with link
+			links = 0,
+			-- count of messages spam like
+			spamlikes = 0,
+			-- max messages per hour
+			maxhourrate = 0,
+		}
+		for km, vm in pairs(vp.msgs) do
+			local compscore
+			local rate
+
+			-- short term requency spam computation
+			compscore = 0
+			rate = 0
+			-- addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_hour
+			for kh, vh in pairs(vm.samplings.last_hour) do
+				rate = rate + vh[MSG_COUNT_IDX]
+				-- if seems contains periodcal messages
+				if vh[MSG_COUNT_IDX]>=5 and vh[PERIOD_COUNT_IDX]>=4 then
+					-- percentage of periodcal/total
+					local period_div_total = vh[PERIOD_COUNT_IDX]/vh[MSG_COUNT_IDX]
+					-- lookup table to get score based on percentage
+					for i=1, #analysis_perf.spam_perc_score_hour do
+						if period_div_total>=analysis_perf.spam_perc_score_hour[i][1] then
+							compscore = compscore + analysis_perf.spam_perc_score_hour[i][2]
+							break
+						end
+					end					
+				end
+			end
+			pfeature.short.score = pfeature.short.score + compscore
+			-- calc max hourly rate
+			if rate > pfeature.maxhourrate then
+				pfeature.maxhourrate = rate
+			end
+
+			-- medium term spam computation
+			compscore = 0
+			-- addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_week
+			for kh, vh in pairs(vm.samplings.last_week) do
+				if vh[MSG_COUNT_IDX]>=5 and vh[PERIOD_COUNT_IDX]>=4 then
+					-- percentage of periodcal/total
+					local period_div_total = vh[PERIOD_COUNT_IDX]/vh[MSG_COUNT_IDX]
+					-- lookup table to get score based on percentage
+					for i=1, #analysis_perf.spam_perc_score_week do
+						if period_div_total>=analysis_perf.spam_perc_score_week[i][1] then
+							compscore = compscore + analysis_perf.spam_perc_score_week[i][2]
+							break
+						end
+					end					
+				end
+			end
+			pfeature.medium.score = pfeature.medium.score  + compscore
+
+			-- long term spam computation
+			if vm.samplings.all_time[PERIOD_COUNT_IDX] >= analysis_perf.min_all_time_thres then
+				compscore = 0
+				-- addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.all_time
+				local period_div_total = vm.samplings.all_time[PERIOD_COUNT_IDX]/vm.samplings.all_time[MSG_COUNT_IDX]
+				for i=1, #analysis_perf.spam_perc_score_all_time do
+					if period_div_total>=analysis_perf.spam_perc_score_all_time[i][1] then
+						compscore = analysis_perf.spam_perc_score_all_time[i][2]
+						break
+					end
+				end
+				pfeature.long.score = pfeature.long.score + compscore
+
+			end
+
+			pfeature.bot = pfeature.short.score + pfeature.medium.score + pfeature.long.score
+
+			-- increase icon/link/spamlike counter
+			-- frequent messages with links are annoying, so increase the weight
+			if vm.haslink then pfeature.links = pfeature.links + pfeature.maxhourrate end
+			if vm.hasicon then pfeature.icons = pfeature.icons + pfeature.maxhourrate end
+			if vm.spamlike then pfeature.spamlikes = pfeature.spamlikes + 1 end
+		end
+
+		-- calculation of spam score
+		if 	pfeature.maxhourrate > analysis_perf.inc_min_hourly_thres -- min hourly threshold
+			and pfeature.bot > analysis_perf.inc_min_bot_thres -- min bot score
+		then
+			local score = 0
+			-- convert bot score to spam score
+			for i=1, #analysis_perf.bot_to_spam_score do
+				if pfeature.bot >=analysis_perf.bot_to_spam_score[i][1] then
+					score = score + analysis_perf.spam_perc_score_all_time[i][2]
+					break
+				end
+			end
+
+			-- convert max hourly rate score to spam score
+			for i=1, #analysis_perf.hourly_to_score do
+				if pfeature.maxhourrate >=analysis_perf.hourly_to_score[i][1] then
+					score = score + analysis_perf.hourly_to_score[i][2]
+					break
+				end
+			end
+
+			-- if too many links messages, possibly a seller
+			if pfeature.links > 0 then
+				--addon:log(pfeature.name .. " links=" ..pfeature.links )
+				for i=1, #analysis_perf.links_to_score do
+					if pfeature.links >=analysis_perf.links_to_score[i][1] then
+						--addon:log("scores=" .. analysis_perf.links_to_score[i][2] )
+						score = score + analysis_perf.links_to_score[i][2]
+						break
+					end
+				end
+			end
+
+			-- icon messages
+			if pfeature.icons > 0 then
+				for i=1, #analysis_perf.icons_to_score do
+					if pfeature.links >=analysis_perf.icons_to_score[i][1] then
+						score = score + analysis_perf.icons_to_score[i][2]
+						break
+					end
+				end
+			end
+
+			-- spamlikes messages
+			if pfeature.spamlikes > 0 then
+				score = score + pfeature.spamlikes / 10
+			end
+
+			pfeature.score = score
+		end
+
+		-- debug
+		--if pfeature.bot>0.1 or pfeature.icons>0 or pfeature.links>0 or pfeature.spamlikes>0 then
+		if pfeature.score > 0.1 then
+			tinsert(analysis_info, pfeature)
+		end
+
+		if pfeature.score > 1 then
+			addon:log(table2string({name=pfeature.name, score=pfeature.score}))
+		end
+
+	end
+	
+	addon.db.profile.debug = addon.db.profile.debug or {}
+	addon.db.profile.debug.analysis_info = analysis_info
+	-- notify after debug info written
+	--PlaySound(18019)
+	PlaySound(123)
+end
+
+function FilterProcessor:SetupAnalysisTimer()
+    FilterProcessor.analysisTimer = C_Timer.NewTimer(2, timer_analysis_func)
+end
+
 -- before message pass to leaning engine, user must meet the conditions which indicate the user is likely a spammer
 -- it's a measure to improve performance and save db space
 function FilterProcessor:PreLearning(msgdata)
 
 	-- get #hour since os.time() start since 1970
 	hournumber = math.floor(msgdata.receive_time / 3600)
+	-- get #day since os.time() start since 1970
+	daynumber = math.floor(msgdata.receive_time / 86400)
 	-- get 5-days window number since 1970
 	penaltynumber = math.floor(msgdata.receive_time / 432000)
 	
@@ -598,6 +957,8 @@ function FilterProcessor:PreLearning(msgdata)
 			name = msgdata.from,  -- for debug purpose, removed in release version to save db space
 			hourwindow = hournumber,
 			hourlycount = 1,
+			daywindow = daynumber,
+			dailycount = 1,
 			penaltywindow = penaltynumber,
 			penaltycount = 0,
 			learning = false,
@@ -626,7 +987,7 @@ function FilterProcessor:PreLearning(msgdata)
 				end
 			end
 		else
-			-- hour is the same with saved hour number, increase counter
+			-- hour window, hour is the same with saved hour number, increase counter
 			if pdata.hourwindow == hournumber then
 				pdata.hourlycount = pdata.hourlycount + 1
 				--addon:log(msgdata.from .. " pdata.hourlycount increase by 1: " .. tostring(pdata.hourlycount))
@@ -636,10 +997,24 @@ function FilterProcessor:PreLearning(msgdata)
 				pdata.hourlycount = 1
 			end
 
+			-- day window
+			if pdata.daywindow == daynumber then
+				pdata.dailycount = pdata.dailycount + 1
+			else
+				pdata.daywindow = daywindow
+				pdata.dailycount = 1
+			end
+
 			-- check hourly count beyond threshold, mark the user should be learned
 			if pdata.hourlycount>addon.db.global.hourly_threshold then
 				pdata.learning = true
-				addon:log(msgdata.from .. " seems to begain talkative, added to the watching list.")
+				addon:log(msgdata.from .. " seems to begain talkative in last hour, added to the watching list.")
+			else
+				-- if daily count exceed threshold
+				if pdata.dailycount>addon.db.global.daily_threshold then
+					pdata.learning = true
+					addon:log(msgdata.from .. " seems to begain talkative in last day, added to the watching list.")
+				end
 			end
 		end
 
@@ -648,7 +1023,7 @@ end
 
 -- get spam score for the user
 function FilterProcessor:GetSpamScore()
-	return 36
+	return 0
 end
 
 -- learn the message and store metrics data into db
@@ -663,16 +1038,16 @@ function FilterProcessor:LeaningMessage(msgdata)
 	self:BehaviorNewMessage(msgdata)
 end
 
--- analysis of user messaging behavior
+-- learn user messaging behavior
 function FilterProcessor:BehaviorNewMessage(msgdata)
 	local locClass, engClass, locRace, engRace, gender, name, server = GetPlayerInfoByGUID(msgdata.guid)
 	local len, hassick, notmeaningful, hasicon, haslink = self:GetMsgSpec(msgdata.message)
 
+	--[[
 	if(hassick or notmeaningful) then 
-		addon:log("spamlike len=" .. len .. " [" .. 
-			msgdata.from .. "] channal=[" .. msgdata.chan_id_name .. 
-			"] hash=" .. hashstr .. ", msg=" .. msgdata.message)
+		addon:log("spamlike msg=" .. msgdata.message)
 	end
+	]]
 
 	-- get or set plist data 
 	addon.db.global.plist[msgdata.guid] = addon.db.global.plist[msgdata.guid] or {
@@ -688,15 +1063,27 @@ function FilterProcessor:BehaviorNewMessage(msgdata)
 			spamlike = hassick or notmeaningful,
 			hasicon = hasicon,
 			haslink = haslink,
+			event = msgdata.event, -- for debug purpose
 			first_time = msgdata.receive_time,
 			last_time = msgdata.receive_time,
-			periodspams = 0,
 			lastperiod = 0,
 			samplings = {
-				all_time = {0, 0, msgdata.chan_num, nil},
+				all_time = {0, 0, msgdata.chan_num, 0, nil},
 				last_hour = {},
+				last_week = {},
 			},
 		}
+
+	-- to compatible upgrade from existing db
+	if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.all_time == nil then
+		addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.all_time = {0, 0, msgdata.chan_num, 0, nil}
+	end
+	if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_hour == nil then
+		addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_hour = {}
+	end
+	if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_week == nil then
+		addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_week = {}
+	end
 
 	-- perform all samplings
 	self:PerformAllSampling(msgdata, addon.db.global.plist[msgdata.guid].msgs[msgdata.hash])
@@ -714,38 +1101,55 @@ function FilterProcessor:PerformAllSampling(msgdata, msgnode)
 	-- do sampling of time frame to get more metrics data
 	-- set key as (minute number / 2) results in 30 keys in 60mins
 	local key = tostring(math.floor(date("%M", msgdata.receive_time)/2))
-	msgnode.samplings.last_hour[key] = msgnode.samplings.last_hour[key] or {0, 0, msgdata.chan_num, nil}
-
+	msgnode.samplings.last_hour[key] = msgnode.samplings.last_hour[key] or {0, 0, msgdata.chan_num, 0, nil}
 	self:Sampling(msgdata, msgnode, msgnode.samplings.last_hour[key])
+
+	-- set key as weekday number 1-7 = mon-sun
+	key = tostring(math.floor(date("%w", msgdata.receive_time)))
+	msgnode.samplings.last_week[key] = msgnode.samplings.last_week[key] or {0, 0, msgdata.chan_num, 0, nil}
+	self:Sampling(msgdata, msgnode, msgnode.samplings.last_week[key])
 end
 
 -- Sampling last hour to store period and message count data into db
--- samplingnode array: {msg_count (1), period_count (2), last_period (3)}
+-- samplingnode array: {msg_count (1), period_count (2), last_chan_num(3), last_period (4)}
+--local MSG_COUNT_IDX = 1
+--local PERIOD_COUNT_IDX = 2
+--local CHAN_NUM_IDX = 3
+--local DEVIATION_AVG_IDX = 4
+--local LAST_PERIOD_IDX = 5
 function FilterProcessor:Sampling(msgdata, msgnode, samplingnode, alltime)
 	local diff_between_msgs = msgdata.receive_time - msgnode.last_time
 
-	if samplingnode[4] ~= nil then
-		local derivation = math.abs(diff_between_msgs - samplingnode[4])
-		local devri_per = derivation/diff_between_msgs
+	if samplingnode[LAST_PERIOD_IDX] ~= nil then
+		local deviation = diff_between_msgs - samplingnode[LAST_PERIOD_IDX]
+		local deviation_per = deviation/diff_between_msgs
 		
 		-- find periodcal message
-		if( (msgdata.chan_num == samplingnode[3]) and (devri_per < addon.db.global.deriv_threshold) ) then
-			-- increase the periodcally spam counter by 1
+		if( (msgdata.chan_num == samplingnode[CHAN_NUM_IDX]) and (math.abs(deviation_per) < addon.db.global.deviation_threshold) ) then
+			--[[
 			if(alltime) then
-				addon:log("[Sampling] dup and spam, devria=" .. math.floor(devri_per*100, 2) .. "%% " .. ' [' ..
+				addon:log("[Sampling] dup and spam, deviation=" .. deviation .. "s/" .. math.floor(deviation_per*1000, 2)/10 .. "% " .. ' [' ..
 					diff_between_msgs .. "] seconds: [" .. msgdata.chan_num .. 
 					"][" .. msgdata.from .. "] " .. msgdata.message )
 			end
-			samplingnode[2] = samplingnode[2] + 1
+			]]
+			-- increase the periodcally spam counter by 1
+			samplingnode[PERIOD_COUNT_IDX] = samplingnode[PERIOD_COUNT_IDX] + 1
+		end
+
+		-- if deviation less than 1, sum the deviation
+		if( (msgdata.chan_num == samplingnode[CHAN_NUM_IDX]) and (math.abs(deviation_per) < 1) ) then
+			-- sum the deviation
+			samplingnode[DEVIATION_AVG_IDX] = samplingnode[DEVIATION_AVG_IDX] + deviation
 		end
 	end
 
 	-- set lastperiod to latest time diff
-	samplingnode[4] = diff_between_msgs
+	samplingnode[LAST_PERIOD_IDX] = diff_between_msgs
 	-- set channel number
-	samplingnode[3] = msgdata.chan_num
+	samplingnode[CHAN_NUM_IDX] = msgdata.chan_num
 	-- inrease msg counter by 1
-	samplingnode[1] = samplingnode[1] + 1
+	samplingnode[MSG_COUNT_IDX] = samplingnode[MSG_COUNT_IDX] + 1
 end
 
 -- return: len, garbage
@@ -828,9 +1232,21 @@ if addonName == nil then
 	function test4()
 		a = os.time()-0
 		print(math.floor(os.date("%M", a)/2))
-		print(math.floor(3.12345*100, 2)/100)
+		print(math.floor(0.31*100, 2)/10)
+		print(math.floor(os.date("%w", os.time())))
 	end
 
-	test4()
+	function test5()
+		for i=1, #analysis_perf.spam_perc_score_all_time do
+			print(analysis_perf.spam_perc_score_all_time[i][1])
+		end
+	end
+
+	function test6()
+		a = (1>30)
+		print(a)
+	end
+
+	test5()
 end
 -- EOF
