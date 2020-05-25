@@ -642,9 +642,30 @@ end
 local analysis_perf = {
 	-- min threshold of hourly message rate to be included into spam score calculation
 	inc_min_hourly_thres = 20,
-	inc_min_bot_thres = 0.2,
+	-- min threshold of bot score to include into spam score calc
+	inc_min_bot_thres = 0.1,
 	-- min reconds to trigger calc of spam score
 	min_all_time_thres = 100,
+	-- extra score if periodcal/total exceed this:  threshold, multiplex
+	hourly_extra_score_period = {
+		{0.9, 10,},
+		{0.8, 6,},
+		{0.7, 4,},
+		{0.6, 3,},
+		{0.5, 2,},
+		{0.4, 1,},
+		{0, 1,},
+	},
+	-- extra score if rate exceed this: threshold, multiplex
+	hourly_extra_score_rate = {
+		{1000,10,},
+		{720,8,},
+		{360,4,},
+		{180,3,},
+		{90,2,},
+		{45,1,},
+		{0,1,},
+	},
 	-- period message percentage vs spam score for hourly
 	spam_perc_score_hour = {
 		{0.9, 1,},
@@ -686,10 +707,17 @@ local analysis_perf = {
 	},
 	-- bot to spam score mapping
 	bot_to_spam_score = {
-		{100, 10,},
-		{50, 5,},
-		{10, 3,},
-		{5, 2,},
+		{500, 50,},
+		{200, 40,},
+		{100, 30,},
+		{70, 20,},
+		{50, 10,},
+		{30, 8,},
+		{20, 6,},
+		{10, 5,},
+		{7, 4,},
+		{5, 3,},
+		{3, 2,},
 		{2, 1.5,},
 		{1, 1,},
 		{0.8, 0.6,},
@@ -789,15 +817,22 @@ function timer_analysis_func()
 		for km, vm in pairs(vp.msgs) do
 			local compscore
 			local rate
+			local total_period_records
+			local total_records
 
 			-- short term requency spam computation
 			compscore = 0
 			rate = 0
+			total_period_records = 0
+			total_records = 0
 			-- addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_hour
 			for kh, vh in pairs(vm.samplings.last_hour) do
+				total_records = total_records + 1
 				rate = rate + vh[MSG_COUNT_IDX]
 				-- if seems contains periodcal messages
 				if vh[MSG_COUNT_IDX]>=5 and vh[PERIOD_COUNT_IDX]>=4 then
+					-- increase counter
+					total_period_records = total_period_records + 1
 					-- percentage of periodcal/total
 					local period_div_total = vh[PERIOD_COUNT_IDX]/vh[MSG_COUNT_IDX]
 					-- lookup table to get score based on percentage
@@ -809,11 +844,29 @@ function timer_analysis_func()
 					end					
 				end
 			end
-			pfeature.short.score = pfeature.short.score + compscore
+
+			-- extra score multiplex for (total period records / total records)
+			for i=1, #analysis_perf.hourly_extra_score_period do
+				if total_period_records/total_records >= analysis_perf.hourly_extra_score_period[i][1] then
+					compscore = compscore * analysis_perf.hourly_extra_score_period[i][2]
+					break
+				end
+			end
+
 			-- calc max hourly rate
 			if rate > pfeature.maxhourrate then
 				pfeature.maxhourrate = rate
 			end
+
+			-- extra score multiplex for message rate for repeated unique message
+			for i=1, #analysis_perf.hourly_extra_score_rate do
+				if total_period_records/total_records >= analysis_perf.hourly_extra_score_rate[i][1] then
+					compscore = compscore * analysis_perf.hourly_extra_score_rate[i][2]
+					break
+				end
+			end
+
+			pfeature.short.score = pfeature.short.score + compscore
 
 			-- medium term spam computation
 			compscore = 0
@@ -865,7 +918,7 @@ function timer_analysis_func()
 			-- convert bot score to spam score
 			for i=1, #analysis_perf.bot_to_spam_score do
 				if pfeature.bot >=analysis_perf.bot_to_spam_score[i][1] then
-					score = score + analysis_perf.spam_perc_score_all_time[i][2]
+					score = score + analysis_perf.bot_to_spam_score[i][2]
 					break
 				end
 			end
