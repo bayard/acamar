@@ -29,12 +29,15 @@ function AcamarGUI:Load_Ace_Custom()
   	-- When settings button clicked
 	frame:SetCallback("OnSettingsClick",
 		function(widget) 
+		    InterfaceOptionsFrame_Show()
+		    InterfaceOptionsFrame_OpenToCategory(addonName);
+		    InterfaceOptionsFrame_OpenToCategory(addonName);
 		end)
   
   	-- When power button clicked
   	frame:SetCallback("OnPowerClick",
 		function(widget) 
-      		addon:ToggleAddon();
+      		addon:ToggleFiltering();
 		end)
   
 	frame:SetLayout("Fill")

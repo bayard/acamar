@@ -29,9 +29,11 @@ else
 					interval = 10,
 				},
 				-- score setting, user's score greater than this score will be rejected
-				score_threshold = 0.5,
+				filtering_level = 0.5,
 				-- hourly messages count threshold, greater than this count, users's behavior will be learned and pass to spam check process
-				hourly_threshold = 20,
+				hourly_learning_threshold = 20,
+				-- daily learning threshold
+				daily_learning_threshold = 50,
 				-- penalty threshold, if player's message count lower than this in penalty window, the user will be removed from leanring process
 				penalty_threshold = 5,
 				-- time deviation threshold of period 
@@ -107,20 +109,6 @@ else
 								},
 							},
 						},
-					},
-				},
-				-- blacklist, learned and classified as bot and heavy spammer, 
-				-- block and omit learning process to improve performance and save db space
-				bl = {
-					["player-9999-9999"] = {
-						create_time = 119871283,
-					},
-				},
-				-- whitelist, learned and classified as normal user, 
-				-- permit and omit learning process to improve performance and save db space
-				wl = {
-					["player-7777-7777"] = {
-						create_time = 119871283,
 					},
 				},
 			},
@@ -565,8 +553,23 @@ end
 
 -- load db
 function FilterProcessor:loaddb()
+	
+	-- players in learning
 	addon.db.global.plist = addon.db.global.plist or {}
+
+	-- prelearning data 
 	addon.db.global.prelearning = addon.db.global.prelearning or {}
+
+	-- features table, calculated features db from plist
+	addon.db.global.pfeatures = addon.db.global.pfeatures or {}
+
+	self:UpdateFilterScore(addon.db.global.filtering_level)
+end
+
+function FilterProcessor:UpdateFilterScore(key)
+	-- if not found, default to "4" - spammer
+	self.filter_score = addon.db.global.level_score_map[addon.db.global.filtering_level] or "4"
+	addon:log("Filter score set to: " .. self.filter_score)
 end
 
 -- when module initialing
@@ -575,6 +578,10 @@ function FilterProcessor:OnInitialize()
 
 	-- set analysis timestamp flag
 	self.analysis_last_run = time()
+
+	-- set compact db timestamp flag
+	self.compactdb_last_run = time()
+
 	FilterProcessor:loaddb()
 end
 
@@ -590,9 +597,6 @@ function FilterProcessor:OnNewMessage(...)
 		return false, 0
 	end
 
-	-- doing analysis if time out
-	self:Analysis()
-
 	self:PreLearning(msgdata)
 	-- if the user is not talkative, skip learning the user
 	prelearning_user = addon.db.global.prelearning[msgdata.guid]
@@ -602,21 +606,29 @@ function FilterProcessor:OnNewMessage(...)
 	end
 
 	-- learning the talkative user
-	self:LeaningMessage(msgdata)
+	self:LearnMessage(msgdata)
 
-	local score = self:GetSpamScore()
-	-- Spam score results in block action
-	--addon:log(table_to_string({player=msgdata.player,score=score, score_threshold=addon.db.global.score_threshold}))
-	if(score>addon.db.global.score_threshold) then
-		return true, score
-	else
-		return false, 0
+	-- setup a analysis timer
+	self:Analysis()
+
+	-- setup a compact db timer
+	self:CompactDB()
+
+	-- only filter message when switch set to on
+	if addon.db.global.message_filter_switch then 
+		local pfeature = addon.db.global.pfeatures[msgdata.guid]
+		if addon.db.global.pfeatures[msgdata.guid] ~= nil then
+			if ( pfeature.score >= self.filter_score ) then
+				addon:log("[Blocking from setting] " .. pfeature.name .. ", score=" .. pfeature.score )
+				return true, pfeature.score 
+			end
+		end
+
 	end
+
 end
 
-
--- analysis the data and calculate blacklist, whitelist and scores
--- and clean database
+-- analysis the data and calculate spam scores
 function FilterProcessor:Analysis()
 	local timelapsed = time()-self.analysis_last_run
 	if timelapsed<addon.db.global.analysis.interval then
@@ -631,6 +643,254 @@ function FilterProcessor:Analysis()
 
 end
 
+
+-- compact db if timer reached
+function FilterProcessor:CompactDB()
+		local timelapsed = time()-self.compactdb_last_run
+	if timelapsed<addon.db.global.compactdb.interval then
+		return
+	end
+
+	-- update analysis timestamp flag
+	self.compactdb_last_run = time()
+
+	-- setup compact db timer
+	self:SetupCompactDBTimer()
+
+end
+-- before message pass to leaning engine, user must meet the conditions which indicate the user is likely a spammer
+-- it's a measure to improve performance and save db space
+function FilterProcessor:PreLearning(msgdata)
+
+	-- get #hour since os.time() start since 1970
+	hournumber = math.floor(msgdata.receive_time / 3600)
+	-- get #day since os.time() start since 1970
+	daynumber = math.floor(msgdata.receive_time / 86400)
+	-- get 5-days window number since 1970
+	penaltynumber = math.floor(msgdata.receive_time / 432000)
+	
+	local pdata = addon.db.global.prelearning[msgdata.guid]
+
+	--[[
+	if(string.find(msgdata.from, "北斗飞飞佳佳")) then
+		-- addon:log(table_to_string(pdata))
+	end
+	]]
+
+	-- If new sender
+	if(pdata == nil) then
+		pdata = {}
+		pdata = {
+			-- name = msgdata.from,  -- for debug purpose, removed in release version to save db space
+			hourwindow = hournumber,
+			hourlycount = 1,
+			daywindow = daynumber,
+			dailycount = 1,
+			penaltywindow = penaltynumber,
+			penaltycount = 0,
+			learning = false,
+		}
+		addon.db.global.prelearning[msgdata.guid] = pdata
+	-- if existing sender
+	else
+		-- if user under learning, unlearned if user's message count lower than threshold in penaltywindow
+		if(pdata.learning) then
+			-- same penaltywindow
+			if(pdata.penaltywindow == penaltynumber) then
+				pdata.penaltycount = pdata.penaltycount + 1
+			-- new penaltywindow
+			else
+				-- if messages count sent by the user lower than threshold in previous penalty window
+				if pdata.penaltycount<addon.db.global.penalty_threshold then
+					-- reset penalty window and counter
+					pdata.penaltywindow = penaltynumber
+					pdata.penaltycount = 0
+					-- mark the user should be removed from learning process
+					pdata.learning = false
+					addon:log(msgdata.from .. " removed from the watching list.")
+				else
+					pdata.penaltywindow = penaltynumber
+					pdata.penaltycount = 1
+				end
+			end
+		else
+			-- hour window, hour is the same with saved hour number, increase counter
+			if pdata.hourwindow == hournumber then
+				pdata.hourlycount = pdata.hourlycount + 1
+				--addon:log(msgdata.from .. " pdata.hourlycount increase by 1: " .. tostring(pdata.hourlycount))
+			-- new hour number, reset counter
+			else
+				pdata.hourwindow = hournumber
+				pdata.hourlycount = 1
+			end
+
+			-- day window
+			if pdata.daywindow == daynumber then
+				pdata.dailycount = pdata.dailycount + 1
+			else
+				pdata.daywindow = daywindow
+				pdata.dailycount = 1
+			end
+
+			-- check hourly count beyond threshold, mark the user should be learned
+			if pdata.hourlycount>addon.db.global.hourly_learning_threshold then
+				pdata.learning = true
+				addon:log(msgdata.from .. " seems to begain talkative in last hour, added to the watching list.")
+			else
+				-- if daily count exceed threshold
+				if pdata.dailycount>addon.db.global.daily_learning_threshold then
+					pdata.learning = true
+					addon:log(msgdata.from .. " seems to begain talkative in last day, added to the watching list.")
+				end
+			end
+		end
+
+	end
+end
+
+-- learn the message and store metrics data into db
+function FilterProcessor:LearnMessage(msgdata)
+	--addon:log("leaning [" .. msgdata.from .. "] channal=[" .. msgdata.chan_id_name .. "] msg=" .. msgdata.message)
+	--local md5str = md5.sumhexa(msgdata.message)
+
+	-- using channel number + hash of message as message key
+	hashstr =  msgdata.chan_num .. ":" .. StringHash(msgdata.message)
+	msgdata.hash = hashstr
+
+	self:BehaviorNewMessage(msgdata)
+end
+
+-- learn user messaging behavior
+function FilterProcessor:BehaviorNewMessage(msgdata)
+	local locClass, engClass, locRace, engRace, gender, name, server = GetPlayerInfoByGUID(msgdata.guid)
+	local len, hassick, notmeaningful, hasicon, haslink = self:GetMsgSpec(msgdata.message)
+
+	--[[
+	if(hassick or notmeaningful) then 
+		addon:log("spamlike msg=" .. msgdata.message)
+	end
+	]]
+
+	-- get or set plist data 
+	addon.db.global.plist[msgdata.guid] = addon.db.global.plist[msgdata.guid] or {
+			name = msgdata.from,
+			class = string.lower(engClass),
+			msgs = {},
+		}
+
+	-- get or set messages node
+	addon.db.global.plist[msgdata.guid].msgs[msgdata.hash] = addon.db.global.plist[msgdata.guid].msgs[msgdata.hash] or {
+			len = len,
+			-- msg = msgdata.message, -- save message, for debug purpose, must be removed in release version
+			spamlike = hassick or notmeaningful,
+			hasicon = hasicon,
+			haslink = haslink,
+			-- event = msgdata.event, -- for debug purpose
+			first_time = msgdata.receive_time,
+			last_time = msgdata.receive_time,
+			lastperiod = 0,
+			samplings = {
+				all_time = {0, 0, msgdata.chan_num, 0, nil},
+				last_hour = {},
+				last_week = {},
+			},
+		}
+
+	-- to compatible upgrade from existing db
+	if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.all_time == nil then
+		addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.all_time = {0, 0, msgdata.chan_num, 0, nil}
+	end
+	if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_hour == nil then
+		addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_hour = {}
+	end
+	if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_week == nil then
+		addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_week = {}
+	end
+
+	-- perform all samplings
+	self:PerformAllSampling(msgdata, addon.db.global.plist[msgdata.guid].msgs[msgdata.hash])
+
+	-- update last_time to message receival time
+	addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].last_time = msgdata.receive_time
+end
+
+-- perform all sampling
+function FilterProcessor:PerformAllSampling(msgdata, msgnode)
+	-- addon:log("Sampling message: " .. msgdata.message)
+	-- full time sampling
+	self:Sampling(msgdata, msgnode, msgnode.samplings.all_time, true)
+
+	-- do sampling of time frame to get more metrics data
+	-- set key as (minute number / 2) results in 30 keys in 60mins
+	local key = tostring(math.floor(date("%M", msgdata.receive_time)/2))
+	msgnode.samplings.last_hour[key] = msgnode.samplings.last_hour[key] or {0, 0, msgdata.chan_num, 0, nil}
+	self:Sampling(msgdata, msgnode, msgnode.samplings.last_hour[key])
+
+	-- set key as weekday number 1-7 = mon-sun
+	key = tostring(math.floor(date("%w", msgdata.receive_time)))
+	msgnode.samplings.last_week[key] = msgnode.samplings.last_week[key] or {0, 0, msgdata.chan_num, 0, nil}
+	self:Sampling(msgdata, msgnode, msgnode.samplings.last_week[key])
+end
+
+-- Sampling last hour to store period and message count data into db
+-- samplingnode array: {msg_count (1), period_count (2), last_chan_num(3), last_period (4)}
+--local MSG_COUNT_IDX = 1
+--local PERIOD_COUNT_IDX = 2
+--local CHAN_NUM_IDX = 3
+--local DEVIATION_AVG_IDX = 4
+--local LAST_PERIOD_IDX = 5
+function FilterProcessor:Sampling(msgdata, msgnode, samplingnode, alltime)
+	local diff_between_msgs = msgdata.receive_time - msgnode.last_time
+
+	if samplingnode[LAST_PERIOD_IDX] ~= nil then
+		local deviation = diff_between_msgs - samplingnode[LAST_PERIOD_IDX]
+		local deviation_per = deviation/diff_between_msgs
+		
+		-- find periodcal message
+		if( (msgdata.chan_num == samplingnode[CHAN_NUM_IDX]) and (math.abs(deviation_per) < addon.db.global.deviation_threshold) ) then
+			--[[
+			if(alltime) then
+				addon:log("[Sampling] dup and spam, deviation=" .. deviation .. "s/" .. math.floor(deviation_per*1000, 2)/10 .. "% " .. ' [' ..
+					diff_between_msgs .. "] seconds: [" .. msgdata.chan_num .. 
+					"][" .. msgdata.from .. "] " .. msgdata.message )
+			end
+			]]
+			-- increase the periodcally spam counter by 1
+			samplingnode[PERIOD_COUNT_IDX] = samplingnode[PERIOD_COUNT_IDX] + 1
+		end
+
+		-- if deviation less than 1, sum the deviation
+		if( (msgdata.chan_num == samplingnode[CHAN_NUM_IDX]) and (math.abs(deviation_per) < 1) ) then
+			-- sum the deviation
+			samplingnode[DEVIATION_AVG_IDX] = samplingnode[DEVIATION_AVG_IDX] + deviation
+		end
+	end
+
+	-- set lastperiod to latest time diff
+	samplingnode[LAST_PERIOD_IDX] = diff_between_msgs
+	-- set channel number
+	samplingnode[CHAN_NUM_IDX] = msgdata.chan_num
+	-- inrease msg counter by 1
+	samplingnode[MSG_COUNT_IDX] = samplingnode[MSG_COUNT_IDX] + 1
+end
+
+-- return: len, garbage
+-- len: length of string (in utf8 encoding)
+-- garbage: true/false, true if spam like (contain sick chars or has non meanful char)
+function FilterProcessor:GetMsgSpec(message)
+	if(message == nil or message == "") then
+		return 0, false
+	end
+
+	len, hassick = contains_sickchars(message)
+	_, notmeaningful = all_non_meaningful(message)
+	hasicon = find_icon(message)
+	haslink = find_link(message)
+
+	return len, hassick, notmeaningful, hasicon, haslink
+end
+
+------------ analysis 
 --[[
 	local MSG_COUNT_IDX = 1
 	local PERIOD_COUNT_IDX = 2
@@ -672,10 +932,10 @@ local analysis_perf = {
 		{0.8, 0.9,},
 		{0.7, 0.6,},
 		{0.6, 0.5,},
-		{0.5, 0.3,},
-		{0.4, 0.2,},
-		{0.3, 0.1,},
-		{0.2, 0.05,},
+		{0.5, 0.2,},
+		{0.4, 0.15,},
+		{0.3, 0.07,},
+		{0.2, 0.02,},
 		{0.1, 0.01,},
 		{0, 0,},
 	},
@@ -684,12 +944,12 @@ local analysis_perf = {
 		{0.9, 1,},
 		{0.8, 0.9,},
 		{0.7, 0.6,},
-		{0.6, 0.4,},
-		{0.5, 0.3,},
-		{0.4, 0.2,},
-		{0.3, 0.1,},
-		{0.2, 0.05,},
-		{0.1, 0.05,},
+		{0.6, 0.5,},
+		{0.5, 0.2,},
+		{0.4, 0.15,},
+		{0.3, 0.07,},
+		{0.2, 0.02,},
+		{0.1, 0.01,},
 		{0, 0,},
 	},
 	-- period message percentage vs spam score for all time
@@ -785,8 +1045,6 @@ function timer_analysis_func()
 	local bdata = addon.db.global.analysis
 	addon:log("bdata:" .. table_to_string(bdata))
 	]]
-
-	local analysis_info = {}
 
 	for kp, vp in pairs(addon.db.global.plist) do
 		local pfeature = {
@@ -961,266 +1219,60 @@ function timer_analysis_func()
 			pfeature.score = score
 		end
 
-		-- debug
 		--if pfeature.bot>0.1 or pfeature.icons>0 or pfeature.links>0 or pfeature.spamlikes>0 then
-		if pfeature.score > 0.1 then
-			tinsert(analysis_info, pfeature)
+		-- update pfeature
+		if pfeature.score > 0 then
+			addon.db.global.pfeatures[kp] = pfeature
 		end
 
-		if pfeature.score > 1 then
-			addon:log(table2string({name=pfeature.name, score=pfeature.score}))
+		if addon.db.global.pfeatures[kp] == nil and pfeature.score >= 0.5 then
+			addon:log(table2string({note="New annoying player found.", name=pfeature.name, score=pfeature.score}))
 		end
 
 	end
 	
-	addon.db.profile.debug = addon.db.profile.debug or {}
-	addon.db.profile.debug.analysis_info = analysis_info
 	-- notify after debug info written
-	--PlaySound(18019)
-	PlaySound(123)
+	PlaySound(18019)
+	--PlaySound(123)
 end
 
+-- set a timer to launch analysis process
 function FilterProcessor:SetupAnalysisTimer()
     FilterProcessor.analysisTimer = C_Timer.NewTimer(2, timer_analysis_func)
 end
 
--- before message pass to leaning engine, user must meet the conditions which indicate the user is likely a spammer
--- it's a measure to improve performance and save db space
-function FilterProcessor:PreLearning(msgdata)
+--------------- compact db
 
-	-- get #hour since os.time() start since 1970
-	hournumber = math.floor(msgdata.receive_time / 3600)
-	-- get #day since os.time() start since 1970
-	daynumber = math.floor(msgdata.receive_time / 86400)
-	-- get 5-days window number since 1970
-	penaltynumber = math.floor(msgdata.receive_time / 432000)
-	
-	local pdata = addon.db.global.prelearning[msgdata.guid]
+-- compact db to reduce db size
+function timer_compactdb_func()
+	addon:log("compacting db...")
 
-	--[[
-	if(string.find(msgdata.from, "北斗飞飞佳佳")) then
-		-- addon:log(table_to_string(pdata))
-	end
+	local aweek_ago = time() - 604800
+
+    -- remove learning data of blacklist player
+    --[[
+    for k,v in pairs(addon.db.global.pfeatures) do 
+    	-- exceed blacklist threshold
+    	if v.score >= addon.db.global.blacklist_score_thres and addon.db.global.plist[k] ~= nil then
+    		addon.db.global.plist[k] = nil
+    	end
+    end
 	]]
 
-	-- If new sender
-	if(pdata == nil) then
-		pdata = {}
-		pdata = {
-			name = msgdata.from,  -- for debug purpose, removed in release version to save db space
-			hourwindow = hournumber,
-			hourlycount = 1,
-			daywindow = daynumber,
-			dailycount = 1,
-			penaltywindow = penaltynumber,
-			penaltycount = 0,
-			learning = false,
-		}
-		addon.db.global.prelearning[msgdata.guid] = pdata
-	-- if existing sender
-	else
-		-- if user under learning, unlearned if user's message count lower than threshold in penaltywindow
-		if(pdata.learning) then
-			-- same penaltywindow
-			if(pdata.penaltywindow == penaltynumber) then
-				pdata.penaltycount = pdata.penaltycount + 1
-			-- new penaltywindow
-			else
-				-- if messages count sent by the user lower than threshold in previous penalty window
-				if pdata.penaltycount<addon.db.global.penalty_threshold then
-					-- reset penalty window and counter
-					pdata.penaltywindow = penaltynumber
-					pdata.penaltycount = 0
-					-- mark the user should be removed from learning process
-					pdata.learning = false
-					addon:log(msgdata.from .. " removed from the watching list.")
-				else
-					pdata.penaltywindow = penaltynumber
-					pdata.penaltycount = 1
-				end
-			end
-		else
-			-- hour window, hour is the same with saved hour number, increase counter
-			if pdata.hourwindow == hournumber then
-				pdata.hourlycount = pdata.hourlycount + 1
-				--addon:log(msgdata.from .. " pdata.hourlycount increase by 1: " .. tostring(pdata.hourlycount))
-			-- new hour number, reset counter
-			else
-				pdata.hourwindow = hournumber
-				pdata.hourlycount = 1
-			end
-
-			-- day window
-			if pdata.daywindow == daynumber then
-				pdata.dailycount = pdata.dailycount + 1
-			else
-				pdata.daywindow = daywindow
-				pdata.dailycount = 1
-			end
-
-			-- check hourly count beyond threshold, mark the user should be learned
-			if pdata.hourlycount>addon.db.global.hourly_threshold then
-				pdata.learning = true
-				addon:log(msgdata.from .. " seems to begain talkative in last hour, added to the watching list.")
-			else
-				-- if daily count exceed threshold
-				if pdata.dailycount>addon.db.global.daily_threshold then
-					pdata.learning = true
-					addon:log(msgdata.from .. " seems to begain talkative in last day, added to the watching list.")
-				end
-			end
-		end
-
-	end
+    for kp,vp in pairs(addon.db.global.plist) do 
+    	-- clean messages older than a week
+    	for km, vm in pairs(vp.msgs) do
+    		if vm.last_time < aweek_ago then
+    			vp.msgs[km] = nil
+    		end
+    	end
+    end
 end
 
--- get spam score for the user
-function FilterProcessor:GetSpamScore()
-	return 0
+-- set a timer to launch compact db process
+function FilterProcessor:SetupCompactDBTimer()
+    FilterProcessor.compactdbTimer = C_Timer.NewTimer(2, timer_compactdb_func)
 end
-
--- learn the message and store metrics data into db
-function FilterProcessor:LeaningMessage(msgdata)
-	--addon:log("leaning [" .. msgdata.from .. "] channal=[" .. msgdata.chan_id_name .. "] msg=" .. msgdata.message)
-	--local md5str = md5.sumhexa(msgdata.message)
-
-	-- using channel number + hash of message as message key
-	hashstr =  msgdata.chan_num .. ":" .. StringHash(msgdata.message)
-	msgdata.hash = hashstr
-
-	self:BehaviorNewMessage(msgdata)
-end
-
--- learn user messaging behavior
-function FilterProcessor:BehaviorNewMessage(msgdata)
-	local locClass, engClass, locRace, engRace, gender, name, server = GetPlayerInfoByGUID(msgdata.guid)
-	local len, hassick, notmeaningful, hasicon, haslink = self:GetMsgSpec(msgdata.message)
-
-	--[[
-	if(hassick or notmeaningful) then 
-		addon:log("spamlike msg=" .. msgdata.message)
-	end
-	]]
-
-	-- get or set plist data 
-	addon.db.global.plist[msgdata.guid] = addon.db.global.plist[msgdata.guid] or {
-			name = msgdata.from,
-			class = string.lower(engClass),
-			msgs = {},
-		}
-
-	-- get or set messages node
-	addon.db.global.plist[msgdata.guid].msgs[msgdata.hash] = addon.db.global.plist[msgdata.guid].msgs[msgdata.hash] or {
-			len = len,
-			msg = msgdata.message, -- save message, for debug purpose, must be removed in release version
-			spamlike = hassick or notmeaningful,
-			hasicon = hasicon,
-			haslink = haslink,
-			event = msgdata.event, -- for debug purpose
-			first_time = msgdata.receive_time,
-			last_time = msgdata.receive_time,
-			lastperiod = 0,
-			samplings = {
-				all_time = {0, 0, msgdata.chan_num, 0, nil},
-				last_hour = {},
-				last_week = {},
-			},
-		}
-
-	-- to compatible upgrade from existing db
-	if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.all_time == nil then
-		addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.all_time = {0, 0, msgdata.chan_num, 0, nil}
-	end
-	if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_hour == nil then
-		addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_hour = {}
-	end
-	if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_week == nil then
-		addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.last_week = {}
-	end
-
-	-- perform all samplings
-	self:PerformAllSampling(msgdata, addon.db.global.plist[msgdata.guid].msgs[msgdata.hash])
-
-	-- update last_time to message receival time
-	addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].last_time = msgdata.receive_time
-end
-
--- perform all sampling
-function FilterProcessor:PerformAllSampling(msgdata, msgnode)
-	-- addon:log("Sampling message: " .. msgdata.message)
-	-- full time sampling
-	self:Sampling(msgdata, msgnode, msgnode.samplings.all_time, true)
-
-	-- do sampling of time frame to get more metrics data
-	-- set key as (minute number / 2) results in 30 keys in 60mins
-	local key = tostring(math.floor(date("%M", msgdata.receive_time)/2))
-	msgnode.samplings.last_hour[key] = msgnode.samplings.last_hour[key] or {0, 0, msgdata.chan_num, 0, nil}
-	self:Sampling(msgdata, msgnode, msgnode.samplings.last_hour[key])
-
-	-- set key as weekday number 1-7 = mon-sun
-	key = tostring(math.floor(date("%w", msgdata.receive_time)))
-	msgnode.samplings.last_week[key] = msgnode.samplings.last_week[key] or {0, 0, msgdata.chan_num, 0, nil}
-	self:Sampling(msgdata, msgnode, msgnode.samplings.last_week[key])
-end
-
--- Sampling last hour to store period and message count data into db
--- samplingnode array: {msg_count (1), period_count (2), last_chan_num(3), last_period (4)}
---local MSG_COUNT_IDX = 1
---local PERIOD_COUNT_IDX = 2
---local CHAN_NUM_IDX = 3
---local DEVIATION_AVG_IDX = 4
---local LAST_PERIOD_IDX = 5
-function FilterProcessor:Sampling(msgdata, msgnode, samplingnode, alltime)
-	local diff_between_msgs = msgdata.receive_time - msgnode.last_time
-
-	if samplingnode[LAST_PERIOD_IDX] ~= nil then
-		local deviation = diff_between_msgs - samplingnode[LAST_PERIOD_IDX]
-		local deviation_per = deviation/diff_between_msgs
-		
-		-- find periodcal message
-		if( (msgdata.chan_num == samplingnode[CHAN_NUM_IDX]) and (math.abs(deviation_per) < addon.db.global.deviation_threshold) ) then
-			--[[
-			if(alltime) then
-				addon:log("[Sampling] dup and spam, deviation=" .. deviation .. "s/" .. math.floor(deviation_per*1000, 2)/10 .. "% " .. ' [' ..
-					diff_between_msgs .. "] seconds: [" .. msgdata.chan_num .. 
-					"][" .. msgdata.from .. "] " .. msgdata.message )
-			end
-			]]
-			-- increase the periodcally spam counter by 1
-			samplingnode[PERIOD_COUNT_IDX] = samplingnode[PERIOD_COUNT_IDX] + 1
-		end
-
-		-- if deviation less than 1, sum the deviation
-		if( (msgdata.chan_num == samplingnode[CHAN_NUM_IDX]) and (math.abs(deviation_per) < 1) ) then
-			-- sum the deviation
-			samplingnode[DEVIATION_AVG_IDX] = samplingnode[DEVIATION_AVG_IDX] + deviation
-		end
-	end
-
-	-- set lastperiod to latest time diff
-	samplingnode[LAST_PERIOD_IDX] = diff_between_msgs
-	-- set channel number
-	samplingnode[CHAN_NUM_IDX] = msgdata.chan_num
-	-- inrease msg counter by 1
-	samplingnode[MSG_COUNT_IDX] = samplingnode[MSG_COUNT_IDX] + 1
-end
-
--- return: len, garbage
--- len: length of string (in utf8 encoding)
--- garbage: true/false, true if spam like (contain sick chars or has non meanful char)
-function FilterProcessor:GetMsgSpec(message)
-	if(message == nil or message == "") then
-		return 0, false
-	end
-
-	len, hassick = contains_sickchars(message)
-	_, notmeaningful = all_non_meaningful(message)
-	hasicon = find_icon(message)
-	haslink = find_link(message)
-
-	return len, hassick, notmeaningful, hasicon, haslink
-end
-
 ---------------------------
 -- test functions
 if addonName == nil then

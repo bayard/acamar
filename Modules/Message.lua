@@ -200,6 +200,7 @@ end
 
 function AcamarMessage:OnInitialize()
     addon:Printf("AcamarMessage:OnInitialize()")
+    self.engine_running = false
 end
 --[[
         "CHAT_MSG_ACHIEVEMENT",
@@ -270,6 +271,7 @@ function AcamarMessage:HookOn()
     for key, value in pairs (chatEvents) do
         ChatFrame_AddMessageEventFilter(value, acamarFilter)
     end
+    self.engine_running = true
 end
 
 function AcamarMessage:HookOff()
@@ -278,6 +280,7 @@ function AcamarMessage:HookOff()
     for key, value in pairs (chatEvents) do
         ChatFrame_RemoveMessageEventFilter(value, acamarFilter)
     end
+    self.engine_running = false
 end
 
 -----------

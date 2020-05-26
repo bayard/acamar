@@ -8,31 +8,44 @@ local WidgetLists = AceGUIWidgetLSMlists
 --  Options
 Options.defaults = {
 	global = {
-		-- if learning engine on or off
-		globalswitch = true,
+		-- message filtering on or off
+		message_filter_switch = true,
+		-- hook engine on/off
+		message_hook_switch = true,
 		-- analysis run params
 		analysis = {
 			interval = 300,
 		},
+		-- compact db
+		compactdb = {
+			interval = 600,
+		},
 		-- current set threshold of spam filtering
-		-- 0: off, 1: on, 0-1: the greater the more strict
-		score_threshold = 0.5,
+		-- 0: off, 1: miniman
+		filtering_level = "4",
+		-- level to score mapping: level, 
+		level_score_map = {
+			--["0"] = 0,			-- off
+			["1"] = 0.05,		-- Minimum
+			["2"] = 0.2,		-- Talkative
+			["3"] = 0.5,		-- Annoying
+			["4"] = 1,			-- Spammer
+			["5"] = 3,			-- Bot
+		},
 		-- beyond this trigger learning (1 hour)
-		hourly_threshold = 0,
+		hourly_learning_threshold = 20,
 		-- beyond this trigger learning after hourly check false
-		daily_threshold = 50,
-		-- low than this trigger remove from leanring (5 days)
+		daily_learning_threshold = 50,
+		-- low than this trigger remove from leanring (in 5 days)
 		penalty_threshold = 20,
 		-- messages received time diff lower than this consider as periodcally (mostly spams)
 		deviation_threshold = 0.25,
+		-- score threshold for dynamic blacklist
+		blacklist_score_thres = 5,
 		-- learning list
 		plist = {},
 		-- pre-learning list
 		prelearning = {},
-		-- blacklist
-		bl = {},
-		-- whitelist
-		wl = {},
 		-- font size
 		fontsize = 12.8,
 		-- ui window save status
@@ -40,7 +53,7 @@ Options.defaults = {
 			height = 50,
 			top = 417,
 			left = 7,
-			width = 88,
+			width = 80,
 		},
 	},
 }
@@ -60,11 +73,6 @@ function Options:Load()
 			addon.db.global.keywords = keywords_enUS
 		end
 	end
-
-	-- testing data
-	addon.db.profile.testmsgdata = addon.db.profile.testmsgdata or {}
-
-	--addon:Printf("globalswitch=" .. tostring(addon.db.global.globalswitch))
 end
 
 function Options:SaveSession()
@@ -75,9 +83,27 @@ function Options:SaveSession()
 	end
 end
 
---- Toggle search on/off
-function addon:ToggleAddon()
-    addon.db.global.globalswitch = not addon.db.global.globalswitch
+-- Set filtering flag on/off
+function addon:ToggleFiltering()
+    addon.db.global.message_filter_switch = not addon.db.global.message_filter_switch
+	addon:log("Filtering is " .. tostring(addon.db.global.message_filter_switch))
+    -- update UI to reflect current filter status
+    addon.AcamarGUI:UpdateAddonUIStatus(addon.db.global.message_filter_switch)
+end
+
+-- Turn on/off engine
+function addon:HookSwitch()
+	if addon.db.global.message_hook_switch then
+		if not addon.AcamarMessage.engine_running then
+			addon:log("Turn on engine...")
+			addon.AcamarMessage:HookOn()
+		end
+	else
+		if addon.AcamarMessage.engine_running then
+			addon.AcamarMessage:HookOff()
+			addon:log("Turn off engine...")
+		end
+	end
 end
 
 function Options.GetOptions(uiType, uiName, appName)
@@ -113,17 +139,26 @@ function Options.GetOptions(uiType, uiName, appName)
 					order = 1.01,
 				},
 
-				max_topic_live_secs = {
-					type = "range",
-					width = "double",
-					min = 10,
-					max = 600,
-					step = 1,
-					softMin = 10,
-					softMax = 600,
-					name = L["Message alive time"],
-					desc = L["How long will message be removed from event (default to 120 seconds)?"],
-					width = "normal",
+				filtering_level = {
+					type = "select",
+					width = "full",
+					name = L["Filtering Level"],
+					desc = L["Set messages filtering level"],
+					values = { 	
+								--["0"] = L["Off"],
+								["1"] = L["Let me be quiet"],
+								["2"] = L["Silent talkative"],
+								["3"] = L["Annoying messages away"],
+								["4"] = L["Only block spammers"],
+								["5"] = L["Only block Bots"],
+							},
+					get = function(info)
+							return addon.db.global[info[#info]] or ""
+						end,
+					set = function(info, value)
+							addon.db.global[info[#info]] = value
+							addon.FilterProcessor:UpdateFilterScore(value)
+						end,
 					order = 1.1,
 				},
 
@@ -133,38 +168,20 @@ function Options.GetOptions(uiType, uiName, appName)
 					order = 2.01,
 				},
 
-				fontsize = {
-					type = "range",
-					width = "double",
-					min = 3,
-					max = 60,
-					step = 0.1,
-					softMin = 3,
-					softMax = 60,
-					name = L["Font size"],
-					desc = L["Font size of event window (default to 12.8)."],
+				message_hook_switch = {
+					type = "toggle",
 					width = "normal",
+					name = L["Turn On Engine"],
+					desc = L["Turn on messages filtering and learning engine. If turn off, messages will not be filtered."],
+					width = "normal",
+					set = function(info,val) 
+							addon.db.global.message_hook_switch = val 
+							addon:HookSwitch()
+						end,
+      				get = function(info) 
+      						return addon.db.global.message_hook_switch 
+      					end,
 					order = 2.1,
-				},
-
-				header03 = {
-					type = "header",
-					name = "",
-					order = 3.01,
-				},
-
-				refresh_interval = {
-					type = "range",
-					width = "double",
-					min = 1,
-					max = 60,
-					step = 1,
-					softMin = 1,
-					softMax = 60,
-					name = L["Refresh interval"],
-					desc = L["How frequent to refresh event window (default to 2 seconds)?"],
-					width = "normal",
-					order = 3.1,
 				},
 
 				header06 = {

@@ -43,7 +43,7 @@ function addon:OnInitialize()
 
 	-- initialize chat command
 	local chatfunc = function()
-    	addon:SwitchOn()
+    	addon:ShowUI()
 	end
 	addon:RegisterChatCommand("acamar", chatfunc)
 
@@ -67,18 +67,19 @@ function addon:OnEnable()
 	-- load options
 	addon.Options:Load()
 
-	-- Load last saved status
+	-- Load last UI saved status
 	if( addon.db.global.ui_switch_on ) then
-		addon:SwitchOn()
+		addon:ShowUI()
 	end
+
+	-- hook message or not based on setting
+	addon:HookSwitch()
 end
 
 function addon:OptionClicked()
 end
 
-function addon:SwitchOn()
-	--addon:Printf(L["SwitchOn"])
-
+function addon:ShowUI()
 	if(addon.AcamarGUI.display) then
 		if(addon.AcamarGUI.display:IsShown()) then
 			-- do nothing
@@ -88,22 +89,15 @@ function addon:SwitchOn()
 
 	addon.AcamarGUI:Load_Ace_Custom()
 	addon.AcamarGUI.display:Show()
-
-	-- do switch on
-	-- Hook message, big-data thing and filter
-	addon.AcamarMessage:HookOn()
 end
 
-function addon:SwitchOff()
-	--addon:Printf(L["SwitchOff"])
+function addon:HideUI()
 
 	if(addon.AcamarGUI.display) then
 		if(addon.AcamarGUI.display:IsShown()) then
 			addon.AcamarGUI.display:Hide()
-			AceGUI:Release(addon.AcamarGUI.display)
+			--AceGUI:Release(addon.AcamarGUI.display)
 			addon.AcamarGUI.display = nil
-
-			addon.AcamarMessage:HookOff()
 		end
 	end
 end
@@ -112,12 +106,12 @@ function addon:UIToggle()
 	-- open or release addon main frame
 	if(addon.AcamarGUI.display) then
 		if(addon.AcamarGUI.display:IsShown()) then
-			addon:SwitchOff()
+			addon:HideUI()
 		else
-			addon:SwitchOn()
+			addon:ShowUI()
 		end
 	else 
-		addon:SwitchOn()
+		addon:ShowUI()
 	end
 end
 -- EOF
