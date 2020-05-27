@@ -38,7 +38,6 @@ Widgets\AcamarSimpleHTML.lua
 
 Acamar.lua
 
-Modules\utf8.lua
 Modules\Options.lua
 Modules\FilterProcessor.lua
 Modules\Minimap.lua

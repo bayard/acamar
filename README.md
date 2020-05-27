@@ -1,4 +1,4 @@
-Acamar, machine-learning spam blocker of WoW classic addon.
+### Acamar, machine-learning spam blocker of WoW classic addon.
 
 Acamar learns player's chatting behavior and identify bots and spammers out from normal users. You don't need to configure keywords, just simply select the level of filtering and the addon will begin to learn, and as more information is learned, the filtering will become more accurate. 
 
@@ -8,7 +8,28 @@ Highly talkative users may be identified a spammer, but they will be removed fro
 
 No configuration needed.
 
-Acamar-机器学习垃圾消息屏蔽，支持魔兽世界怀旧版。
+For addon developer: If you intent to use Acamar Spam Engine as your message filter, API code sample:
+
+```lua
+    local acamar_api = _G["AcamarAPIHelper"]
+    if acamar_api ~= nil then
+    	-- blocked: If the player with guid should be blocked.
+    	-- spamscore: The spam score of the player. The greater, the player's 
+    	-- behavior is more like a bot. Normally you don't need to use score unless 
+    	-- you want to classified spam players into more specific groups. 1 is good
+    	-- in most circumstances.
+        local blocked, spamscore = acamar_api:IsBlock(guid)
+        if blocked then
+            -- add your code if player should be blocked
+        end
+    end
+```
+
+Triton@DaggerRidge(CN), 2020
+
+------
+
+### Acamar-机器学习垃圾消息屏蔽，支持魔兽世界怀旧版。
 
 Acamar学习用户的聊天行为，从中辨识出正常玩家、垃圾发送者以及脚本。只需选择过滤的级别，插件就会自动学习，随着学习的信息越来越多，过滤就会变得越来越准确。
 
@@ -18,4 +39,23 @@ Acamar学习用户的聊天行为，从中辨识出正常玩家、垃圾发送�
 
 无需配置。
 
+插件开发者可以通过下面的代码来使用Acamar API在自己开发的插件中过滤用户：
+
+```lua
+    local acamar_api = _G["AcamarAPIHelper"]
+    if acamar_api ~= nil then
+    	-- blocked: 用户guid是否被过滤掉
+    	-- spamscore: 得分。用户行为越像垃圾信息发送者或脚本，得分越高。多数情况下，
+    	-- 得分无需用到。如果要用，1 在多数情况下用来区隔正常用户和垃圾用户比较合适。
+        local blocked, spamscore = acamar_api:IsBlock(guid)
+        if blocked then
+            -- 当用户被过滤掉的代码
+        end
+    end
+```
+
 Acamar@匕首岭, 2020
+
+------
+
+$\color{blue}{Acamar:\; 49\:parsecs\:away\:from\:the\:Sun\\Triton: \;only\:0.00014567\:parsec\:away\:from\:the\:sun}$
