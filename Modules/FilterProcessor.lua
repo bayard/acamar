@@ -628,6 +628,18 @@ function FilterProcessor:OnNewMessage(...)
 
 end
 
+-- API: IsBlock(guid)
+-- guid: the player guid returned from GetPlayerInfoByGUID
+function FilterProcessor:IsBlock(guid)
+	local pfeature = addon.db.global.pfeatures[msgdata.guid]
+	if addon.db.global.pfeatures[msgdata.guid] ~= nil then
+		if ( pfeature.score >= self.filter_score ) then
+			return true, pfeature.score 
+		end
+	end
+	return false, 0
+end
+
 -- analysis the data and calculate spam scores
 function FilterProcessor:Analysis()
 	local timelapsed = time()-self.analysis_last_run
@@ -744,8 +756,11 @@ function FilterProcessor:PreLearning(msgdata)
 				end
 			end
 		end
-
 	end
+
+	-- set update time
+	pdata.updatetime = time()
+
 end
 
 -- learn the message and store metrics data into db
@@ -918,13 +933,13 @@ local analysis_perf = {
 	},
 	-- extra score if rate exceed this: threshold, multiplex
 	hourly_extra_score_rate = {
-		{1000,10,},
-		{720,8,},
-		{360,4,},
-		{180,3,},
-		{90,2,},
-		{45,1,},
-		{0,1,},
+		{1000, 10,},
+		{720, 8,},
+		{360, 4,},
+		{180, 3,},
+		{90, 2,},
+		{45, 1,},
+		{0, 1,},
 	},
 	-- period message percentage vs spam score for hourly
 	spam_perc_score_hour = {
@@ -989,48 +1004,71 @@ local analysis_perf = {
 	},
 	-- hourly rate to score mapping
 	hourly_to_score = {
-		{1000,10,},
-		{500,5,},
-		{300,3,},
-		{250,2.5,},
-		{200,2,},
-		{150,1.5,},
-		{100,1.2,},
-		{80,1,},
-		{70,0.8,},
-		{60,0.5,},
-		{50,0.3,},
-		{40,0.2,},
-		{30,0.1,},
-		{20,0.05,},
-		{10,0,},
-		{0,0,},
+		{1000, 10,},
+		{500, 5,},
+		{300, 3,},
+		{250, 2.5,},
+		{200, 2,},
+		{150, 1.5,},
+		{100, 1.2,},
+		{80, 1,},
+		{70, 0.8,},
+		{60, 0.5,},
+		{50, 0.3,},
+		{40, 0.2,},
+		{30, 0.1,},
+		{20, 0.05,},
+		{10, 0,},
+		{0, 0,},
 	},
 	-- links to score mapping
 	links_to_score = {
-		{1000,5,},
-		{500,4,},
-		{300,2,},
-		{200,1,},
-		{100,0.6,},
-		{50,0.5,},
-		{30,0.2},
-		{20,0.1,},
-		{10,0.05,},
-		{0,0,},
+		{1000, 5,},
+		{500, 4,},
+		{300, 2,},
+		{200, 1,},
+		{100, 0.6,},
+		{50, 0.5,},
+		{30, 0.2},
+		{20, 0.1,},
+		{10, 0.05,},
+		{0, 0,},
 	},
 	-- icons to score mapping
 	icons_to_score = {
-		{1000,5,},
-		{500,4,},
-		{300,2,},
-		{200,1,},
-		{100,0.6,},
-		{50,0.5,},
-		{30,0.2},
-		{20,0.1,},
-		{10,0.05,},
-		{0,0,},
+		{1000, 5,},
+		{500, 4,},
+		{300, 2,},
+		{200, 1,},
+		{100, 0.6,},
+		{50, 0.5,},
+		{30, 0.2},
+		{20, 0.1,},
+		{10, 0.05,},
+		{0, 0,},
+	},
+	-- when update features, score of previous feature should be keeped for centain time if new score is lower, score to time mapping
+	feature_score_keep_time = {
+		{50, 315576000,}, -- 10 years
+		{40, 157788000,}, -- 5 years
+		{30, 17280000,}, -- 200 days
+		{20, 8640000,}, -- 100 days
+		{10, 5184000,}, -- 60 days
+		{8, 2592000,}, -- 30 days
+		{6, 432000,}, -- 10 days
+		{5, 172800,}, -- 2 days
+		{4, 172800,}, -- 2 days
+		{3, 86400,}, -- 1 day
+		{2, 86400,}, -- 1 day
+		{1.5, 86400,}, -- 1 day
+		{1, 86400,}, -- 1 day
+		{0.6, 43200,}, -- 12 hours
+		{0.3, 21600,}, -- 6 hours
+		{0.2, 10800,}, -- 3 hours
+		{0.1, 7200,}, -- 2 hours
+		{0.05, 3600,}, -- 1 hour
+		{0.01, 1800,}, -- 30 minutes
+		{0, 0,},
 	},
 }
 
@@ -1222,7 +1260,41 @@ function timer_analysis_func()
 		--if pfeature.bot>0.1 or pfeature.icons>0 or pfeature.links>0 or pfeature.spamlikes>0 then
 		-- update pfeature
 		if pfeature.score > 0 then
-			addon.db.global.pfeatures[kp] = pfeature
+			local toupdate = false
+			-- set update time of current analysis
+			pfeature.updatetime = time()
+
+			local last_feature = addon.db.global.pfeatures[kp] or nil
+
+			-- if new, to update
+			if last_feature == nil then
+				toupdate = true
+			else
+				-- if current score greater than last score, to update
+				if pfeature.score > last_feature.score then
+					toupdate = true
+				-- if current score is lower, to update only when diff from last update satisfy the mapping table
+				else
+					for i=1, #analysis_perf.feature_score_keep_time do
+						if last_feature.score >=analysis_perf.feature_score_keep_time[i][1] then
+							if (last_feature.updatetime == nil) then
+								toupdate = true
+							else
+								if (pfeature.updatetime - last_feature.updatetime >= analysis_perf.feature_score_keep_time[i][2]) then
+									toupdate = true
+								end
+							end
+							break
+						end
+					end
+				end
+			end
+
+			if toupdate then
+				addon:log("update pfeature")
+				-- addon.db.global.pfeatures[kp] = {score = pfeature.score, updatetime=pfeature.updatetime} -- release version
+				addon.db.global.pfeatures[kp] = pfeature -- for debug purpose
+			end
 		end
 
 		if addon.db.global.pfeatures[kp] == nil and pfeature.score >= 0.5 then
@@ -1232,7 +1304,7 @@ function timer_analysis_func()
 	end
 	
 	-- notify after debug info written
-	PlaySound(18019)
+	PlaySound(SOUNDKIT.READY_CHECK)
 	--PlaySound(123)
 end
 
@@ -1243,11 +1315,17 @@ end
 
 --------------- compact db
 
+local compact_pref = {
+	-- purge messages less than 5 in an hour
+	purge_hour_count = 20,
+}
+
 -- compact db to reduce db size
 function timer_compactdb_func()
 	addon:log("compacting db...")
 
 	local aweek_ago = time() - 604800
+	local ahour_ago = time() - 3600
 
     -- remove learning data of blacklist player
     --[[
@@ -1259,14 +1337,54 @@ function timer_compactdb_func()
     end
 	]]
 
-    for kp,vp in pairs(addon.db.global.plist) do 
-    	-- clean messages older than a week
+	-- compact plist
+    for kp,vp in pairs(addon.db.global.plist) do
+    	local msgcounter = 0
     	for km, vm in pairs(vp.msgs) do
+    		msgcounter = msgcounter + 1
+	    	-- purge messages older than a week
     		if vm.last_time < aweek_ago then
     			vp.msgs[km] = nil
     		end
+
+    		--[[
+    		-- purge messages sent less than purge_hour_count in all time
+    		if (vm.last_time < ahour_ago) and (vm.samplings.all_time[MSG_COUNT_IDX]<compact_pref.purge_hour_count) then
+    			vp.msgs[km] = nil
+    		end
+			]]
+			
+    		if (vm.last_time < ahour_ago) then
+	    		-- purge messages sent less than purge_hour_count in last hour
+	    		local hourmsgcount = 0
+	    		for kh, vh in pairs(vm.samplings.last_hour) do
+	    			hourmsgcount = hourmsgcount + vh[MSG_COUNT_IDX]
+	    		end
+	    		if hourmsgcount < compact_pref.purge_hour_count then
+	    			vp.msgs[km] = nil
+	    		end
+    		end
+
+    	end
+    	-- remove player node without messages
+    	if msgcounter == 0 then
+    		addon.db.global.plist[kp] = nil
     	end
     end
+
+    -- compact prelearning
+    for kp,vp in pairs(addon.db.global.prelearning) do 
+    	if vp.updatetime == nil then
+    		vp.updatetime = time()
+    	else
+    		-- remove not in learning and updatetime older than 1 hour
+    		if (vp.learning == false) and (time() - vp.updatetime > 3600) then
+    			addon.db.global.prelearning[kp] = nil
+    		end
+    	end
+    end
+
+	PlaySound(18019)
 end
 
 -- set a timer to launch compact db process
@@ -1352,6 +1470,47 @@ if addonName == nil then
 		print(a)
 	end
 
-	test5()
+
+	function test7()
+		last_feature = {score=2, updatetime=50}
+		pfeature = {score=1, updatetime=100+86400}
+
+		if pfeature.score > 0 then
+		end
+
+		local toupdate = false
+
+		-- if new, to update
+		if last_feature == nil then
+			toupdate = true
+		else
+			-- if current score greater than last score, to update
+			if pfeature.score > last_feature.score then
+				toupdate = true
+			-- if current score is lower, to update only when diff from last update satisfy the mapping table
+			else
+				for i=1, #analysis_perf.feature_score_keep_time do
+					if last_feature.score >=analysis_perf.feature_score_keep_time[i][1] then
+						if (last_feature.updatetime == nil) then
+							toupdate = true
+						else
+							if (pfeature.updatetime - last_feature.updatetime >= analysis_perf.feature_score_keep_time[i][2]) then
+								toupdate = true
+							end
+						end
+						break
+					end
+				end
+			end
+		end
+
+		print(tostring(toupdate))
+	end
+
+	function test8()
+		print(os.time()-1590570329)
+	end
+
+	test8()
 end
 -- EOF

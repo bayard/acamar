@@ -48,6 +48,9 @@ function AcamarGUI:Load_Ace_Custom()
 
 	addon:log("Container created")
 
+	-- uodate UI status
+	addon.AcamarGUI:UpdateAddonUIStatus(addon.db.global.message_filter_switch)
+
 	return AcamarGUI.display
 end
 

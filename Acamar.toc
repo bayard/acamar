@@ -44,4 +44,6 @@ Modules\FilterProcessor.lua
 Modules\Minimap.lua
 Modules\Message.lua
 Modules\AcamarGUI.lua
+Modules\AcamarAPI.lua
+
 ##EOF

@@ -18,7 +18,7 @@ Options.defaults = {
 		},
 		-- compact db
 		compactdb = {
-			interval = 600,
+			interval = 360,
 		},
 		-- current set threshold of spam filtering
 		-- 0: off, 1: miniman
@@ -146,11 +146,11 @@ function Options.GetOptions(uiType, uiName, appName)
 					desc = L["Set messages filtering level"],
 					values = { 	
 								--["0"] = L["Off"],
-								["1"] = L["Let me be quiet"],
-								["2"] = L["Silent talkative"],
-								["3"] = L["Annoying messages away"],
-								["4"] = L["Only block spammers"],
-								["5"] = L["Only block Bots"],
+								["1"] = L["Most strict level with minimum spam"],
+								["2"] = L["Bots, spammers, annoying senders and talkative players away"],
+								["3"] = L["Block bots, spammers and annoying messages"],
+								["4"] = L["Block bots and spammers"],
+								["5"] = L["Block bots only"],
 							},
 					get = function(info)
 							return addon.db.global[info[#info]] or ""

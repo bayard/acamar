@@ -32,69 +32,6 @@ sample data
 },
 ]]
 
---[[
-local backupFilter = function(self, event, message, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...)
-    msgdata = {
-        --self = self,
-        event = event,
-        message = message,
-        from = from,
-        lang = lang,
-        chan_id_name = chan_id_name,
-        player_name_only = player_name_only,
-        flag = flag,
-        chan_id = chan_id, -- start from 0
-        chan_num = chan_num, -- start from 1
-        chan_name = chan_name, -- channel name only
-        u = u,
-        line_id = line_id,
-        guid = guid
-    }    
-
-    -- addon.db.profile.testmsgdata = msgdata;
-    -- addon:log(table_to_string(msgdata))
-
-    if line_id == prevLineID then
-        if modifyMsg then
-            return false, modify, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
-        elseif block then
-            return true
-        else
-            return
-        end
-    else
-        -- addon:log(table_to_string({line_id=line_id, prevLineID=prevLineID, player=player}))
-
-        prevLineID, modifyMsg, block = line_id, nil, nil
-
-        --Only scan official custom channels (gen/trade)
-        local trimmedPlayer = Ambiguate(from, "none")
-        if event == "CHAT_MSG_CHANNEL" and (chan_id == 0 or type(chan_id) ~= "number") then 
-            return 
-        end 
-
-        --Don't filter ourself/friends/guild
-        if UnitIsInMyGuild(trimmedPlayer) then 
-            return 
-        end 
-        
-        -- Forward message to processor to study the behavior of sender and classfy spam level of message and sender
-        block, score = addon.FilterProcessor:OnNewMessage(msgdata)
-
-        -- block the message
-        if block then
-            return true
-        end
-
-        if(addon.db.profile.modify_msg == true) then
-            -- do modify message
-            return false, modify, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
-        end
-
-    end
-end
-]]
-
 local acamarFilter = function(self, event, message, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...)
     msgdata = {
         --self = self,
@@ -236,32 +173,8 @@ end
 -- don't filter messages in RAID, GUILD, and others
 local chatEvents = (
     {
-        "CHAT_MSG_ACHIEVEMENT",
-        "CHAT_MSG_BATTLEGROUND",
-        "CHAT_MSG_BATTLEGROUND_LEADER",
         "CHAT_MSG_CHANNEL",
-        "CHAT_MSG_CHANNEL_JOIN",
-        "CHAT_MSG_CHANNEL_LEAVE",
-        "CHAT_MSG_CHANNEL_NOTICE_USER",
-        "CHAT_MSG_EMOTE",
-        "CHAT_MSG_GUILD",
-        "CHAT_MSG_GUILD_ACHIEVEMENT",
-        "CHAT_MSG_INSTANCE_CHAT",
-        "CHAT_MSG_INSTANCE_CHAT_LEADER",
-        "CHAT_MSG_MONSTER_EMOTE",
-        "CHAT_MSG_MONSTER_PARTY",
-        "CHAT_MSG_MONSTER_SAY",
-        "CHAT_MSG_MONSTER_WHISPER",
-        "CHAT_MSG_MONSTER_YELL",
-        "CHAT_MSG_OFFICER",
-        "CHAT_MSG_PARTY",
-        "CHAT_MSG_RAID",
-        "CHAT_MSG_RAID_LEADER",
-        "CHAT_MSG_RAID_WARNING",
         "CHAT_MSG_SAY",
-        "CHAT_MSG_SYSTEM",
-        "CHAT_MSG_TEXT_EMOTE",
-        "CHAT_MSG_WHISPER",
         "CHAT_MSG_YELL",
     })
     
