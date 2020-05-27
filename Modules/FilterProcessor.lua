@@ -1000,6 +1000,7 @@ local analysis_perf = {
 		{0.3, 0.2,},
 		{0.2, 0.1,},
 		{0.1, 0.05,},
+		{0.05, 0.01,},
 		{0, 0,},
 	},
 	-- hourly rate to score mapping
@@ -1018,6 +1019,7 @@ local analysis_perf = {
 		{40, 0.2,},
 		{30, 0.1,},
 		{20, 0.05,},
+		{15, 0.01,},
 		{10, 0,},
 		{0, 0,},
 	},
@@ -1268,30 +1270,40 @@ function timer_analysis_func()
 
 			-- if new, to update
 			if last_feature == nil then
+				addon:log("update pfeature: new feature " .. pfeature.name)
 				toupdate = true
 			else
+				-- diff precision set to hundredth
+				local diff = math.floor((pfeature.score - last_feature.score) * 100) / 100
+
 				-- if current score greater than last score, to update
-				if pfeature.score > last_feature.score then
+				if diff>0 then
+					addon:log("update pfeature: score increase: " .. pfeature.name .. " " .. pfeature.score .. "/" .. last_feature.score .. " diff=" .. diff)
 					toupdate = true
 				-- if current score is lower, to update only when diff from last update satisfy the mapping table
-				else
+				elseif diff<0 then
 					for i=1, #analysis_perf.feature_score_keep_time do
 						if last_feature.score >=analysis_perf.feature_score_keep_time[i][1] then
 							if (last_feature.updatetime == nil) then
 								toupdate = true
 							else
 								if (pfeature.updatetime - last_feature.updatetime >= analysis_perf.feature_score_keep_time[i][2]) then
+									addon:log("update pfeature: score decline and update time reached: " .. pfeature.name .. " " .. pfeature.score .. "/" .. last_feature.score .. " diff=" .. diff)
 									toupdate = true
+								else
+									addon:log("update pfeature: score decline and time needed: " .. pfeature.name .. " " .. pfeature.score .. "/" .. last_feature.score .. " diff=" .. diff .. " time=" .. (pfeature.updatetime - last_feature.updatetime) .. "/" .. analysis_perf.feature_score_keep_time[i][2] )
 								end
 							end
 							break
 						end
 					end
+				else
+					--addon:log("update pfeature: score not changed: " .. pfeature.name .. " " .. pfeature.score .. "/" .. last_feature.score .. " diff=" .. diff)
 				end
 			end
 
 			if toupdate then
-				addon:log("update pfeature")
+				addon:log("Doing update pfeature")
 				-- addon.db.global.pfeatures[kp] = {score = pfeature.score, updatetime=pfeature.updatetime} -- release version
 				addon.db.global.pfeatures[kp] = pfeature -- for debug purpose
 			end
@@ -1353,7 +1365,7 @@ function timer_compactdb_func()
     			vp.msgs[km] = nil
     		end
 			]]
-			
+
     		if (vm.last_time < ahour_ago) then
 	    		-- purge messages sent less than purge_hour_count in last hour
 	    		local hourmsgcount = 0
@@ -1508,7 +1520,9 @@ if addonName == nil then
 	end
 
 	function test8()
-		print(os.time()-1590570329)
+		a = 1/3
+		print(math.floor(a*1000)/1000)
+		print(os.time()-1590618136)
 	end
 
 	test8()

@@ -58,4 +58,4 @@ Acamar@匕首岭, 2020
 
 ------
 
-<sub>Acamar is 49 parsecs away from the sun, while Triton is only 0.00014567 parsecs away.</sub>
+<sub>Acamar is 49 parsecs away from the sun, while Triton is only 0.00014567 parsecs.</sub>
