@@ -13,3 +13,7 @@ _G["AcamarAPIHelper"] = AcamarAPI
 function AcamarAPI:IsBlock(guid)
 	return addon.FilterProcessor:IsBlock(guid)
 end
+
+function AcamarAPI:SpamScore(guid)
+	return addon.FilterProcessor:SpamScore(guid)
+end

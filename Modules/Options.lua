@@ -33,9 +33,9 @@ Options.defaults = {
 			["5"] = 3,			-- Bot
 		},
 		-- beyond this trigger learning (1 hour)
-		hourly_learning_threshold = 20,
+		hourly_learning_threshold = 10,
 		-- beyond this trigger learning after hourly check false
-		daily_learning_threshold = 50,
+		daily_learning_threshold = 30,
 		-- low than this trigger remove from leanring (in 5 days)
 		penalty_threshold = 20,
 		-- messages received time diff lower than this consider as periodcally (mostly spams)

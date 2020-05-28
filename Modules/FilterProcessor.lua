@@ -631,13 +631,23 @@ end
 -- API: IsBlock(guid)
 -- guid: the player guid returned from GetPlayerInfoByGUID
 function FilterProcessor:IsBlock(guid)
-	local pfeature = addon.db.global.pfeatures[msgdata.guid]
-	if addon.db.global.pfeatures[msgdata.guid] ~= nil then
+	local pfeature = addon.db.global.pfeatures[guid]
+	if addon.db.global.pfeatures[guid] ~= nil then
 		if ( pfeature.score >= self.filter_score ) then
+			-- addon:log("isblock " .. guid .. ", score=" .. pfeature.score)
 			return true, pfeature.score 
 		end
 	end
 	return false, 0
+end
+
+-- get player's spam score
+function FilterProcessor:SpamScore(guid)
+	local pfeature = addon.db.global.pfeatures[guid]
+	if addon.db.global.pfeatures[guid] ~= nil then
+		return pfeature.score 
+	end
+	return 0
 end
 
 -- analysis the data and calculate spam scores
@@ -654,7 +664,6 @@ function FilterProcessor:Analysis()
 	self:SetupAnalysisTimer()
 
 end
-
 
 -- compact db if timer reached
 function FilterProcessor:CompactDB()
@@ -916,7 +925,7 @@ end
 
 local analysis_perf = {
 	-- min threshold of hourly message rate to be included into spam score calculation
-	inc_min_hourly_thres = 20,
+	inc_min_hourly_thres = 15,
 	-- min threshold of bot score to include into spam score calc
 	inc_min_bot_thres = 0.1,
 	-- min reconds to trigger calc of spam score
@@ -1328,8 +1337,8 @@ end
 --------------- compact db
 
 local compact_pref = {
-	-- purge messages less than 5 in an hour
-	purge_hour_count = 20,
+	-- purge messages less than purge_hour_count in an hour, normally equals to hourly_learning_threshold
+	purge_hour_count = 10,
 }
 
 -- compact db to reduce db size
