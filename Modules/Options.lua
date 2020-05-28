@@ -5,6 +5,21 @@ local LSM = LibStub("LibSharedMedia-3.0")
 local WidgetLists = AceGUIWidgetLSMlists
 --------------------------------------------------------------------------------------------------------
 
+local SPAM_LEVEL_1 = 0.05
+local SPAM_LEVEL_2 = 0.2
+local SPAM_LEVEL_3 = 0.5
+local SPAM_LEVEL_4 = 1
+local SPAM_LEVEL_5 = 3
+
+addon.spammercolor = {
+	{SPAM_LEVEL_5, "|cfff51000"},
+	{SPAM_LEVEL_4, "|cffff9900"},
+	{SPAM_LEVEL_3, "|cffffea00"},
+	{SPAM_LEVEL_2, "|cff00aaff"},
+	{SPAM_LEVEL_1, "|cff00ff00"},
+	{0, "|cffffffff"},
+}
+
 --  Options
 Options.defaults = {
 	global = {
@@ -25,12 +40,12 @@ Options.defaults = {
 		filtering_level = "4",
 		-- level to score mapping: level, 
 		level_score_map = {
-			--["0"] = 0,			-- off
-			["1"] = 0.05,		-- Minimum
-			["2"] = 0.2,		-- Talkative
-			["3"] = 0.5,		-- Annoying
-			["4"] = 1,			-- Spammer
-			["5"] = 3,			-- Bot
+			--["0"] = 0,				-- off
+			["1"] = SPAM_LEVEL_1,		-- Minimum
+			["2"] = SPAM_LEVEL_2,		-- Talkative
+			["3"] = SPAM_LEVEL_3,		-- Annoying
+			["4"] = SPAM_LEVEL_4,		-- Spammer
+			["5"] = SPAM_LEVEL_5,		-- Bot
 		},
 		-- beyond this trigger learning (1 hour)
 		hourly_learning_threshold = 10,
@@ -58,6 +73,8 @@ Options.defaults = {
 	},
 }
 
+local top500list = ""
+
 function Options:Load()
     local keywords_enUS = {
     };
@@ -73,6 +90,8 @@ function Options:Load()
 			addon.db.global.keywords = keywords_enUS
 		end
 	end
+
+	--top500select = GetBannedTable(500)
 end
 
 function Options:SaveSession()
@@ -106,8 +125,155 @@ function addon:HookSwitch()
 	end
 end
 
+----------- options functions
+function WhisperListToSelf(info) 
+	addon:log("Printing banned list: Player Name [spam score]") 
+
+	SendChatMessage(L["Currently banned players:"], "WHISPER", nil, UnitName("player"))
+    for k,v in pairs(addon.db.global.pfeatures) do 
+		-- exceed blacklist threshold
+		if ( v.score >= addon.FilterProcessor.filter_score ) then
+			SendChatMessage(v.name .. " [" .. v.score .. "]" , "WHISPER", nil, UnitName("player"))
+		end
+    end
+end
+
+-- get sorted keys
+local function keysSortedByValue(tbl, sortFunction)
+    local keys = {}
+    for key in pairs(tbl) do
+        table.insert(keys, key)
+    end
+
+    table.sort(keys, function(a, b)
+        return sortFunction(tbl[a], tbl[b])
+    end)
+
+    return keys
+end
+
+function PrintBannedList(info)
+	local bannedlist = {}
+
+	for k, v in pairs(addon.db.global.pfeatures) do
+		if ( v.score >= addon.FilterProcessor.filter_score ) then
+			tinsert(bannedlist, {name=v.name, score=v.score})
+		end
+    end
+
+
+	local sort_field = "score"
+	function tcompare(a, b)
+		return a[sort_field]>b[sort_field]
+	end
+
+	local sortedKeys = keysSortedByValue(bannedlist, tcompare)
+
+	addon:log(L["Top 500 spammers with spam score greater than "] .. addon.FilterProcessor.filter_score) 
+	local counter=0
+	for _, key in ipairs(sortedKeys) do
+		spamcolor = "|cffffffff"
+		for i=1, #addon.spammercolor do
+			if bannedlist[key].score >= addon.spammercolor[i][1] then
+				spamcolor = addon.spammercolor[i][2]
+				break
+			end
+		end
+
+		addon:log(bannedlist[key].name .. " [" .. spamcolor .. bannedlist[key].score .. "|r]")
+		counter = counter + 1
+		if counter>=500 then
+			break
+		end
+    end
+	addon:log(L["Total players in banned list: "] .. counter) 
+end
+
+function GetBannedList(max)
+	local bannedlist = {}
+	local list = ""
+
+	for k, v in pairs(addon.db.global.pfeatures) do
+		if ( v.score >= 0 ) then
+			tinsert(bannedlist, {name=v.name, score=v.score})
+		end
+    end
+
+
+	local sort_field = "score"
+	function tcompare(a, b)
+		return a[sort_field]>b[sort_field]
+	end
+
+	local sortedKeys = keysSortedByValue(bannedlist, tcompare)
+
+	list = L["Top players with spam score. Max "] .. max .. "\n\n"
+	local counter=0
+	for _, key in ipairs(sortedKeys) do
+		spamcolor = "|cffffffff"
+		for i=1, #addon.spammercolor do
+			if bannedlist[key].score >= addon.spammercolor[i][1] then
+				spamcolor = addon.spammercolor[i][2]
+				break
+			end
+		end
+
+		list = list .. bannedlist[key].name .. " [" .. spamcolor .. bannedlist[key].score .. "|r]" .. "\n"
+		counter = counter + 1
+		if counter>=500 then
+			break
+		end
+    end
+	list = list .. "\n" .. L["Total players in the list: "] .. counter
+
+	return list
+end
+
+function GetBannedTable(max)
+	local bannedlist = {}
+	local list = {}
+
+	for k, v in pairs(addon.db.global.pfeatures) do
+		if ( v.score >= 0 ) then
+			tinsert(bannedlist, {name=v.name, score=v.score})
+		end
+    end
+
+
+	local sort_field = "score"
+	function tcompare(a, b)
+		return a[sort_field]>b[sort_field]
+	end
+
+	local sortedKeys = keysSortedByValue(bannedlist, tcompare)
+
+	list["0"] = L["Top players with spam score. Max "] .. max
+	local counter=1
+	for _, key in ipairs(sortedKeys) do
+		spamcolor = "|cffffffff"
+		for i=1, #addon.spammercolor do
+			if bannedlist[key].score >= addon.spammercolor[i][1] then
+				spamcolor = addon.spammercolor[i][2]
+				break
+			end
+		end
+
+		list["" .. counter] =bannedlist[key].name .. " [" .. spamcolor .. bannedlist[key].score .. "|r]" .. "\n"
+		counter = counter + 1
+		if counter>500 then
+			break
+		end
+    end
+	list["end"] = L["Total players in the list: "] .. counter
+
+	return list
+end
+
 function Options.GetOptions(uiType, uiName, appName)
 	if appName == addonName then
+
+		-- calc top 500 list
+		top500list = GetBannedList(500)
 
 		local options = {
 			type = "group",
@@ -146,11 +312,11 @@ function Options.GetOptions(uiType, uiName, appName)
 					desc = L["Set messages filtering level"],
 					values = { 	
 								--["0"] = L["Off"],
-								["1"] = L["Most strict level with minimum spam"],
-								["2"] = L["Bots, spammers, annoying senders and talkative players away"],
-								["3"] = L["Block bots, spammers and annoying messages"],
-								["4"] = L["Block bots and spammers"],
-								["5"] = L["Block bots only"],
+								["1"] = L["Most strict level with minimum spam"] .. " [" .. SPAM_LEVEL_1 .. "]",
+								["2"] = L["Bots, spammers, annoying senders and talkative players away"] .. " [" .. SPAM_LEVEL_2 .. "]",
+								["3"] = L["Block bots, spammers and annoying messages"] .. " [" .. SPAM_LEVEL_3 .. "]",
+								["4"] = L["Block bots and spammers"] .. " [" .. SPAM_LEVEL_4 .. "]",
+								["5"] = L["Block bots only"] .. " [" .. SPAM_LEVEL_5 .. "]",
 							},
 					get = function(info)
 							return addon.db.global[info[#info]] or ""
@@ -170,7 +336,7 @@ function Options.GetOptions(uiType, uiName, appName)
 
 				message_hook_switch = {
 					type = "toggle",
-					width = "normal",
+					width = "full",
 					name = L["Turn On Engine"],
 					desc = L["Turn on messages filtering and learning engine. If turn off, messages will not be filtered."],
 					width = "normal",
@@ -184,6 +350,32 @@ function Options.GetOptions(uiType, uiName, appName)
 					order = 2.1,
 				},
 
+				header03 = {
+					type = "header",
+					name = "",
+					order = 3.01,
+				},
+
+				command_cleardb = {
+					type = "execute",
+					width = "normal",
+					name = L["Reset and re-learn"],
+					confirm = true,
+					desc = L["Reset DB to initial status and begin to re-learn players' behavior."],
+					func = function(info) addon:log("Resetting db...") end,
+					order = 3.1,
+				},
+				--[[
+				command_print_blocking = {
+					type = "execute",
+					width = "normal",
+					name = L["Top 500 spammers"],
+					confirm = true,
+					desc = L["Print current banned player list in chat window."],
+					func = function(info) PrintBannedList(info) end,
+					order = 3.2,
+				},
+				]]
 				header06 = {
 					type = "header",
 					name = "",
@@ -196,6 +388,36 @@ function Options.GetOptions(uiType, uiName, appName)
 					descStyle = L["AUTHOR_INFO"],
 					order = 6.1,
 				},
+
+				--[[
+				header08 = {
+					type = "header",
+					name = "",
+					order = 8.01,
+				},
+				top500_list_select = {
+					type = "multiselect",
+					width = "full",
+					name = L["Top 500 spammer list"],
+					descStyle = L["Top 500 spammer list"],
+					values = top500select,
+					order = 8.1,
+				},
+				]]
+
+				header09 = {
+					type = "header",
+					name = "",
+					order = 9.01,
+				},
+
+				top500_list = {
+					type = "description",
+					name = top500list,
+					descStyle = L["Top 500 spammer list"],
+					order = 9.1,
+				},
+
 			},
 		}
 		return options

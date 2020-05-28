@@ -19,6 +19,7 @@ function AcamarGUI:Load_Ace_Custom()
 
 	frame:SetTitle(addonName)
 	frame.titletext:SetFont(fontName, 11.8)
+	frame:EnableResize(false)
 
   	-- When close button clicked
 	frame:SetCallback("OnClose",

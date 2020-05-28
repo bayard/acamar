@@ -19,6 +19,7 @@ L["Turn on messages filtering and learning engine. If turn off, messages will no
 L["ADDON_INFO"] = '|cffca99ffAcamar|r machine-learning spam blocker addon for WoW.'
 
 L["AUTHOR_INFO"] = '|cffca99ffAcamar|r learns user chatting behavior and identify bots and spammers out from normal users, and as more information is learned, the filtering will become more accurate.\n\n' .. 
+"You are use /acamar command or click minimap icon to open tiny control window to pause/resume filtering." ..
 '\n\nhttps://github.com/bayard/acamar\n|cffca99ffTriton|r@匕首岭 2020'
 
 -- EOF

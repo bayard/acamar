@@ -619,7 +619,7 @@ function FilterProcessor:OnNewMessage(...)
 		local pfeature = addon.db.global.pfeatures[msgdata.guid]
 		if addon.db.global.pfeatures[msgdata.guid] ~= nil then
 			if ( pfeature.score >= self.filter_score ) then
-				addon:log("[Blocking from setting] " .. pfeature.name .. ", score=" .. pfeature.score )
+				--addon:log("[Block] " .. pfeature.name .. ", score=" .. pfeature.score )
 				return true, pfeature.score 
 			end
 		end
@@ -805,7 +805,7 @@ function FilterProcessor:BehaviorNewMessage(msgdata)
 	-- get or set messages node
 	addon.db.global.plist[msgdata.guid].msgs[msgdata.hash] = addon.db.global.plist[msgdata.guid].msgs[msgdata.hash] or {
 			len = len,
-			-- msg = msgdata.message, -- save message, for debug purpose, must be removed in release version
+			msg = msgdata.message, -- save message, for debug purpose, must be removed in release version
 			spamlike = hassick or notmeaningful,
 			hasicon = hasicon,
 			haslink = haslink,
@@ -819,6 +819,10 @@ function FilterProcessor:BehaviorNewMessage(msgdata)
 				last_week = {},
 			},
 		}
+	-- for debug purpose
+	if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].msg == nil then
+		addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].msg = msgdata.message
+	end
 
 	-- to compatible upgrade from existing db
 	if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.all_time == nil then
@@ -1279,7 +1283,7 @@ function timer_analysis_func()
 
 			-- if new, to update
 			if last_feature == nil then
-				addon:log("update pfeature: new feature " .. pfeature.name)
+				addon:log(L["Found new possible spammer: "] .. pfeature.name)
 				toupdate = true
 			else
 				-- diff precision set to hundredth
@@ -1287,6 +1291,7 @@ function timer_analysis_func()
 
 				-- if current score greater than last score, to update
 				if diff>0 then
+					--addon:log(pfeature.name .. L["'s spam score increased."])
 					addon:log("update pfeature: score increase: " .. pfeature.name .. " " .. pfeature.score .. "/" .. last_feature.score .. " diff=" .. diff)
 					toupdate = true
 				-- if current score is lower, to update only when diff from last update satisfy the mapping table
@@ -1318,9 +1323,11 @@ function timer_analysis_func()
 			end
 		end
 
+		--[[
 		if addon.db.global.pfeatures[kp] == nil and pfeature.score >= 0.5 then
 			addon:log(table2string({note="New annoying player found.", name=pfeature.name, score=pfeature.score}))
 		end
+		]]
 
 	end
 	
@@ -1531,7 +1538,7 @@ if addonName == nil then
 	function test8()
 		a = 1/3
 		print(math.floor(a*1000)/1000)
-		print(os.time()-1590618136)
+		print(os.time()-1590630091)
 	end
 
 	test8()
