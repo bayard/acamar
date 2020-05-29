@@ -928,10 +928,10 @@ end
 ]]
 
 local analysis_perf = {
-	-- min threshold of hourly message rate to be included into spam score calculation
+	-- min threshold of hourly rate of all messages
+	inc_min_hourly_allmsgs_thres = 30,
+	-- min threshold of hourly rate of per unique message to be included into spam score calculation
 	inc_min_hourly_thres = 15,
-	-- min threshold of bot score to include into spam score calc
-	inc_min_bot_thres = 0.1,
 	-- min reconds to trigger calc of spam score
 	min_all_time_thres = 100,
 	-- extra score if periodcal/total exceed this:  threshold, multiplex
@@ -1062,6 +1062,19 @@ local analysis_perf = {
 		{10, 0.05,},
 		{0, 0,},
 	},
+	-- icons to score mapping
+	spamlikes_to_score = {
+		{1000, 5,},
+		{500, 4,},
+		{300, 2,},
+		{200, 1,},
+		{100, 0.6,},
+		{50, 0.5,},
+		{30, 0.2},
+		{20, 0.1,},
+		{10, 0.05,},
+		{0, 0,},
+	},
 	-- when update features, score of previous feature should be keeped for centain time if new score is lower, score to time mapping
 	feature_score_keep_time = {
 		{50, 315576000,}, -- 10 years
@@ -1088,6 +1101,13 @@ local analysis_perf = {
 }
 
 function timer_analysis_func()
+	-- skip if reseting db in progress
+	if addon.resetting_flag ~= nil then
+		if addon.resetting_flag then
+			return
+		end
+	end
+
 	addon:log("Perform analysis...")
 
 	-- debug
@@ -1122,8 +1142,10 @@ function timer_analysis_func()
 			links = 0,
 			-- count of messages spam like
 			spamlikes = 0,
-			-- max messages per hour
+			-- max messages per hour of single unique message
 			maxhourrate = 0,
+			-- total messages per hour of all messages
+			hourratetotal = 0,
 		}
 		for km, vm in pairs(vp.msgs) do
 			local compscore
@@ -1168,6 +1190,8 @@ function timer_analysis_func()
 			if rate > pfeature.maxhourrate then
 				pfeature.maxhourrate = rate
 			end
+
+			pfeature.hourratetotal = pfeature.hourratetotal + rate
 
 			-- extra score multiplex for message rate for repeated unique message
 			for i=1, #analysis_perf.hourly_extra_score_rate do
@@ -1215,15 +1239,15 @@ function timer_analysis_func()
 			pfeature.bot = pfeature.short.score + pfeature.medium.score + pfeature.long.score
 
 			-- increase icon/link/spamlike counter
-			-- frequent messages with links are annoying, so increase the weight
-			if vm.haslink then pfeature.links = pfeature.links + pfeature.maxhourrate end
-			if vm.hasicon then pfeature.icons = pfeature.icons + pfeature.maxhourrate end
-			if vm.spamlike then pfeature.spamlikes = pfeature.spamlikes + 1 end
+			-- frequent messages with links are annoying, count every single message
+			if vm.haslink then pfeature.links = pfeature.links + rate end
+			if vm.hasicon then pfeature.icons = pfeature.icons + rate end
+			if vm.spamlike then pfeature.spamlikes = pfeature.spamlikes + rate end
 		end
 
 		-- calculation of spam score
-		if 	pfeature.maxhourrate > analysis_perf.inc_min_hourly_thres -- min hourly threshold
-			and pfeature.bot > analysis_perf.inc_min_bot_thres -- min bot score
+		if 	(pfeature.maxhourrate > analysis_perf.inc_min_hourly_thres) -- min hourly threshold for unique message with max rate
+			or (pfeature.hourratetotal > analysis_perf.inc_min_hourly_allmsgs_thres) -- min hourly threshold for all messages rate
 		then
 			local score = 0
 			-- convert bot score to spam score
@@ -1237,6 +1261,14 @@ function timer_analysis_func()
 			-- convert max hourly rate score to spam score
 			for i=1, #analysis_perf.hourly_to_score do
 				if pfeature.maxhourrate >=analysis_perf.hourly_to_score[i][1] then
+					score = score + analysis_perf.hourly_to_score[i][2]
+					break
+				end
+			end
+
+			-- convert total hourly rate of all messsage score to spam score
+			for i=1, #analysis_perf.hourly_to_score do
+				if pfeature.hourratetotal >=analysis_perf.hourly_to_score[i][1] then
 					score = score + analysis_perf.hourly_to_score[i][2]
 					break
 				end
@@ -1264,9 +1296,14 @@ function timer_analysis_func()
 				end
 			end
 
-			-- spamlikes messages
+			-- spamlikes messages 
 			if pfeature.spamlikes > 0 then
-				score = score + pfeature.spamlikes / 10
+				for i=1, #analysis_perf.spamlikes_to_score do
+					if pfeature.spamlikes >=analysis_perf.spamlikes_to_score[i][1] then
+						score = score + analysis_perf.spamlikes_to_score[i][2]
+						break
+					end
+				end
 			end
 
 			pfeature.score = score
@@ -1350,20 +1387,17 @@ local compact_pref = {
 
 -- compact db to reduce db size
 function timer_compactdb_func()
-	addon:log("compacting db...")
+	-- skip if reseting db in progress
+	if addon.resetting_flag ~= nil then
+		if addon.resetting_flag then
+			return
+		end
+	end
+
+	addon:log("Compacting db...")
 
 	local aweek_ago = time() - 604800
 	local ahour_ago = time() - 3600
-
-    -- remove learning data of blacklist player
-    --[[
-    for k,v in pairs(addon.db.global.pfeatures) do 
-    	-- exceed blacklist threshold
-    	if v.score >= addon.db.global.blacklist_score_thres and addon.db.global.plist[k] ~= nil then
-    		addon.db.global.plist[k] = nil
-    	end
-    end
-	]]
 
 	-- compact plist
     for kp,vp in pairs(addon.db.global.plist) do

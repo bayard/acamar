@@ -62,7 +62,7 @@ end
 
 -- called by AceAddon on PLAYER_LOGIN
 function addon:OnEnable()
-	print("|cFF33FF99" .. addonName .. " (" .. addon.METADATA.VERSION .. ")|r: " .. L["enter /acamar for Acamar spam terminator main interface"])
+	print("|cFF33FF99" .. addonName .. " (" .. addon.METADATA.VERSION .. ")|r: " .. L["Enter /acamar for Acamar engine main interface"])
 
 	-- load options
 	addon.Options:Load()

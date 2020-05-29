@@ -4,7 +4,24 @@ local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "enUS", true, silent)
 if not L then return end
 ------------------------------------------------------------------------------
 
-L["|cffffff00Click|r to toggle the triton main window."] = true
+L["|cffffff00Click|r to toggle the acamar main window."] = true
+
+L["Enter /acamar for Acamar engine main interface"] = true
+L["Found new possible spammer: "] = true
+L["'s spam score increased."] = true
+L["Currently banned players:"] = true
+L["Top 500 spammers with spam score greater than "] = true
+L["Total players in banned list: "] = true
+L["Learning in progress ..."] = true
+L["Top players with spam score. Max "] = true
+L["The list changes along with the learning progress."] = true
+L["Total players in the list: "] = true
+L["Resetting DB and learning enging..."] = true
+L["Reset and re-learn"] = true
+L["Reset DB to initial status and begin to re-learn players' behavior."] = true
+L["Top 500 spammers"] = true
+L["Print current banned player list in chat window."] = true
+L["Top 500 spammer list"] = true
 
 L["Filtering Level"] = true
 L["Set messages filtering level"] = true

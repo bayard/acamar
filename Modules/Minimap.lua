@@ -26,7 +26,7 @@ function AcamarMinimap:OnInitialize()
 
             OnTooltipShow = function(tt)
                 tt:AddLine(addonName)
-                tt:AddLine(L["|cffffff00Click|r to toggle the acamar main window."])
+                tt:AddLine(L["|cffffff00Click|r to toggle the Acamar main window."])
             end,
 
             OnLeave = HideTooltip

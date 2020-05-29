@@ -55,8 +55,6 @@ Options.defaults = {
 		penalty_threshold = 20,
 		-- messages received time diff lower than this consider as periodcally (mostly spams)
 		deviation_threshold = 0.25,
-		-- score threshold for dynamic blacklist
-		blacklist_score_thres = 5,
 		-- learning list
 		plist = {},
 		-- pre-learning list
@@ -91,7 +89,9 @@ function Options:Load()
 		end
 	end
 
-	--top500select = GetBannedTable(500)
+	addon.db.global.creator_addon_version = addon.db.global.creator_addon_version or addon.METADATA.VERSION
+
+	addon.db.global.ui_switch_on = addon.db.global.ui_switch_on or true
 end
 
 function Options:SaveSession()
@@ -193,12 +193,17 @@ function GetBannedList(max)
 	local bannedlist = {}
 	local list = ""
 
+	local prec = 0
 	for k, v in pairs(addon.db.global.pfeatures) do
 		if ( v.score >= 0 ) then
 			tinsert(bannedlist, {name=v.name, score=v.score})
+			prec = prec + 1
 		end
     end
 
+    if prec == 0 then
+    	return L["Learning in progress ..."]
+    end
 
 	local sort_field = "score"
 	function tcompare(a, b)
@@ -207,7 +212,9 @@ function GetBannedList(max)
 
 	local sortedKeys = keysSortedByValue(bannedlist, tcompare)
 
-	list = L["Top players with spam score. Max "] .. max .. "\n\n"
+	list = L["Top players with spam score. Max "] .. max .. "\n"
+	list = list .. L["The list changes along with the learning progress."] .. "\n\n"
+
 	local counter=0
 	for _, key in ipairs(sortedKeys) do
 		spamcolor = "|cffffffff"
@@ -233,11 +240,19 @@ function GetBannedTable(max)
 	local bannedlist = {}
 	local list = {}
 
+	local prec = 0
 	for k, v in pairs(addon.db.global.pfeatures) do
 		if ( v.score >= 0 ) then
 			tinsert(bannedlist, {name=v.name, score=v.score})
+			prec = prec + 1
 		end
     end
+
+    if prec == 0 then
+    	return {"0", L["Learning in progress ..."]}
+    end
+
+    addon:log("prec=" .. prec)
 
 
 	local sort_field = "score"
@@ -267,6 +282,23 @@ function GetBannedTable(max)
 	list["end"] = L["Total players in the list: "] .. counter
 
 	return list
+end
+
+function ResetAcamarDB(info)
+	addon:log(L["Resetting DB and learning enging..."])
+
+	addon.resetting_flag = true
+
+	-- reset plist
+	addon.db.global.plist = {}
+
+	-- reset prelearning
+	addon.db.global.prelearning = {}
+
+	-- reset pfeatures
+	addon.db.global.pfeatures = {}
+
+	addon.resetting_flag = false
 end
 
 function Options.GetOptions(uiType, uiName, appName)
@@ -362,7 +394,7 @@ function Options.GetOptions(uiType, uiName, appName)
 					name = L["Reset and re-learn"],
 					confirm = true,
 					desc = L["Reset DB to initial status and begin to re-learn players' behavior."],
-					func = function(info) addon:log("Resetting db...") end,
+					func = function(info) ResetAcamarDB(info) end,
 					order = 3.1,
 				},
 				--[[
