@@ -569,12 +569,12 @@ end
 function FilterProcessor:UpdateFilterScore(key)
 	-- if not found, default to "4" - spammer
 	self.filter_score = addon.db.global.level_score_map[addon.db.global.filtering_level] or "4"
-	addon:log("Filter score set to: " .. self.filter_score)
+	addon:log(L["At current level, block spam score set to: "] .. self.filter_score)
 end
 
 -- when module initialing
 function FilterProcessor:OnInitialize()
-	addon:log("Filter db loaded.")
+	-- addon:log("Filter db loaded.")
 
 	-- set analysis timestamp flag
 	self.analysis_last_run = time()
@@ -593,7 +593,7 @@ function FilterProcessor:OnNewMessage(...)
 	local msgdata = ...
 
 	if msgdata.guid == nil or msgdata.guid == "" then
-		addon:log("Empty guid, skipped")
+		-- addon:log("Empty guid, skipped")
 		return false, 0
 	end
 
@@ -692,12 +692,6 @@ function FilterProcessor:PreLearning(msgdata)
 	
 	local pdata = addon.db.global.prelearning[msgdata.guid]
 
-	--[[
-	if(string.find(msgdata.from, "北斗飞飞佳佳")) then
-		-- addon:log(table_to_string(pdata))
-	end
-	]]
-
 	-- If new sender
 	if(pdata == nil) then
 		pdata = {}
@@ -728,7 +722,7 @@ function FilterProcessor:PreLearning(msgdata)
 					pdata.penaltycount = 0
 					-- mark the user should be removed from learning process
 					pdata.learning = false
-					addon:log(msgdata.from .. " removed from the watching list.")
+					addon:log(msgdata.from .. L["'s behavior return normal and removed from the learning process."])
 				else
 					pdata.penaltywindow = penaltynumber
 					pdata.penaltycount = 1
@@ -756,12 +750,12 @@ function FilterProcessor:PreLearning(msgdata)
 			-- check hourly count beyond threshold, mark the user should be learned
 			if pdata.hourlycount>addon.db.global.hourly_learning_threshold then
 				pdata.learning = true
-				addon:log(msgdata.from .. " seems to begain talkative in last hour, added to the watching list.")
+				addon:log(msgdata.from .. L[" was talkative in last hour and added to learning process."])
 			else
 				-- if daily count exceed threshold
 				if pdata.dailycount>addon.db.global.daily_learning_threshold then
 					pdata.learning = true
-					addon:log(msgdata.from .. " seems to begain talkative in last day, added to the watching list.")
+					addon:log(msgdata.from .. L[" was talkative in last day and added to learning process."])
 				end
 			end
 		end
@@ -1108,7 +1102,7 @@ function timer_analysis_func()
 		end
 	end
 
-	addon:log("Perform analysis...")
+	-- addon:log(L["Performing analysis on user behavior ..."])
 
 	-- debug
 	--[[
@@ -1329,7 +1323,7 @@ function timer_analysis_func()
 				-- if current score greater than last score, to update
 				if diff>0 then
 					--addon:log(pfeature.name .. L["'s spam score increased."])
-					addon:log("update pfeature: score increase: " .. pfeature.name .. " " .. pfeature.score .. "/" .. last_feature.score .. " diff=" .. diff)
+					--addon:log("update pfeature: score increase: " .. pfeature.name .. " " .. pfeature.score .. "/" .. last_feature.score .. " diff=" .. diff)
 					toupdate = true
 				-- if current score is lower, to update only when diff from last update satisfy the mapping table
 				elseif diff<0 then
@@ -1339,10 +1333,10 @@ function timer_analysis_func()
 								toupdate = true
 							else
 								if (pfeature.updatetime - last_feature.updatetime >= analysis_perf.feature_score_keep_time[i][2]) then
-									addon:log("update pfeature: score decline and update time reached: " .. pfeature.name .. " " .. pfeature.score .. "/" .. last_feature.score .. " diff=" .. diff)
+									--addon:log("update pfeature: score decline and update time reached: " .. pfeature.name .. " " .. pfeature.score .. "/" .. last_feature.score .. " diff=" .. diff)
 									toupdate = true
 								else
-									addon:log("update pfeature: score decline and time needed: " .. pfeature.name .. " " .. pfeature.score .. "/" .. last_feature.score .. " diff=" .. diff .. " time=" .. (pfeature.updatetime - last_feature.updatetime) .. "/" .. analysis_perf.feature_score_keep_time[i][2] )
+									--addon:log("update pfeature: score decline and time needed: " .. pfeature.name .. " " .. pfeature.score .. "/" .. last_feature.score .. " diff=" .. diff .. " time=" .. (pfeature.updatetime - last_feature.updatetime) .. "/" .. analysis_perf.feature_score_keep_time[i][2] )
 								end
 							end
 							break
@@ -1354,7 +1348,7 @@ function timer_analysis_func()
 			end
 
 			if toupdate then
-				addon:log("Doing update pfeature")
+				--addon:log("Doing update pfeature")
 				-- addon.db.global.pfeatures[kp] = {score = pfeature.score, updatetime=pfeature.updatetime} -- release version
 				addon.db.global.pfeatures[kp] = pfeature -- for debug purpose
 			end
@@ -1369,8 +1363,9 @@ function timer_analysis_func()
 	end
 	
 	-- notify after debug info written
-	PlaySound(SOUNDKIT.READY_CHECK)
+	--PlaySound(SOUNDKIT.READY_CHECK)
 	--PlaySound(123)
+	PlaySound(1519)
 end
 
 -- set a timer to launch analysis process
@@ -1394,7 +1389,7 @@ function timer_compactdb_func()
 		end
 	end
 
-	addon:log("Compacting db...")
+	-- addon:log(L["Performing optimization on learning DB ..."])
 
 	local aweek_ago = time() - 604800
 	local ahour_ago = time() - 3600
@@ -1446,7 +1441,7 @@ function timer_compactdb_func()
     	end
     end
 
-	PlaySound(18019)
+	-- PlaySound(18019)
 end
 
 -- set a timer to launch compact db process

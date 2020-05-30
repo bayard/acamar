@@ -20,7 +20,7 @@ L["Reset and re-learn"] = "重置数据以重新学习"
 L["Reset DB to initial status and begin to re-learn players' behavior."] = "[慎点] 将学习的数据清空，重新开始学习。"
 L["Top 500 spammers"] = "前500名垃圾信息发送者"
 L["Print current banned player list in chat window."] = "将当前被被屏蔽的用户列表发送到聊天窗口。"
-L["Top 500 spammer list"] = "前500名垃圾信息发送列表"
+L["Top 500 spammer list"] = "前500名垃圾信息发送者："
 
 L["Filtering Level"] = "过滤级别"
 L["Set messages filtering level"] = "选择过滤级别"
@@ -32,6 +32,20 @@ L["Block bots only"] = "禁止脚本型玩家"
 L["Turn On Engine"] = "启用Acamar引擎"
 L["Turn on messages filtering and learning engine. If turn off, messages will not be filtered."] = "如果关闭，消息过滤及学习都将被停止。"
 
+-- logs
+L["Acamar control window opened."] = "Acamar控制窗口已打开。"
+L["At current level, block spam score set to: "] = "当前过滤级别对应的垃圾得分为："
+L["'s behavior return normal and removed from the learning process."] = "的行为恢复正常，所以停止学习该玩家的行为。"
+L[" was talkative in last hour and added to learning process."] = "最近话多起来，已关注其聊天信息。"
+L[" was talkative in last day and added to learning process."] = "最近一天话多起来，已关注其聊天信息。"
+L["Performing analysis on user behavior ..."] = "正在分析用户聊天行为数据..."
+L["Performing optimization on learning DB ..."] = "正在优化数据库..."
+L["Chat messages filtering started."] = "聊天信息过滤启用。"
+L["Chat messages filtering stopped, but learning engine still running."] = "聊天信息过滤停止，不过学习引擎继续运行。"
+L["Turn on learning engine..."] = "打开学习引擎..."
+L["Turn off learning engine..."] = "关闭学习引擎..."
+
+-- app info
 L["ADDON_INFO"] = '|cffca99ffAcamar|r 自学习垃圾消息屏蔽插件。支持WoW怀旧版。'
 
 L["AUTHOR_INFO"] = '|cffca99ffAcamar|r 学习用户的聊天行为，从中辨识出正常玩家、垃圾发送者以及脚本。只需选择过滤的级别，随着学习的信息越来越多，过滤就会变得越来越准确。\n\n' .. 

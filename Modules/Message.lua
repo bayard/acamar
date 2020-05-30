@@ -136,7 +136,7 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
 end
 
 function AcamarMessage:OnInitialize()
-    addon:Printf("AcamarMessage:OnInitialize()")
+    --addon:Printf("AcamarMessage:OnInitialize()")
     self.engine_running = false
 end
 --[[
@@ -176,10 +176,12 @@ local chatEvents = (
         "CHAT_MSG_CHANNEL",
         "CHAT_MSG_SAY",
         "CHAT_MSG_YELL",
+        "CHAT_MSG_EMOTE",
+        
     })
     
 function AcamarMessage:HookOn()
-    addon:log("Hooking messages")
+    -- addon:log("Hooking messages")
 
     for key, value in pairs (chatEvents) do
         ChatFrame_AddMessageEventFilter(value, acamarFilter)
@@ -188,7 +190,7 @@ function AcamarMessage:HookOn()
 end
 
 function AcamarMessage:HookOff()
-    addon:log("Unhooking messages")
+    -- addon:log("Unhooking messages")
 
     for key, value in pairs (chatEvents) do
         ChatFrame_RemoveMessageEventFilter(value, acamarFilter)

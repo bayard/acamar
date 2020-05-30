@@ -33,6 +33,20 @@ L["Block bots only"] = true
 L["Turn On Engine"] = true
 L["Turn on messages filtering and learning engine. If turn off, messages will not be filtered."] = true
 
+-- logs
+L["Acamar control window opened."] = true
+L["At current level, block spam score set to: "] = true
+L["'s behavior return normal and removed from the learning process."] = true
+L[" was talkative in last hour and added to learning process."] = true
+L[" was talkative in last day and added to learning process."] = true
+L["Performing analysis on user behavior ..."] = true
+L["Performing optimization on learning DB ..."] = true
+L["Chat messages filtering started."] = true
+L["Chat messages filtering stopped, but learning engine still running."] = true
+L["Turn on learning engine..."] = true
+L["Turn off learning engine..."] = true
+
+-- app info
 L["ADDON_INFO"] = '|cffca99ffAcamar|r machine-learning spam blocker addon for WoW.'
 
 L["AUTHOR_INFO"] = '|cffca99ffAcamar|r learns user chatting behavior and identify bots and spammers out from normal users, and as more information is learned, the filtering will become more accurate.\n\n' .. 

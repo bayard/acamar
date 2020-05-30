@@ -47,7 +47,7 @@ function AcamarGUI:Load_Ace_Custom()
 
 	self:CreateScrollContainer()
 
-	addon:log("Container created")
+	addon:log(L["Acamar control window opened."])
 
 	-- uodate UI status
 	addon.AcamarGUI:UpdateAddonUIStatus(addon.db.global.message_filter_switch)

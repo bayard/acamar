@@ -29,11 +29,11 @@ Options.defaults = {
 		message_hook_switch = true,
 		-- analysis run params
 		analysis = {
-			interval = 300,
+			interval = 600,
 		},
 		-- compact db
 		compactdb = {
-			interval = 360,
+			interval = 900,
 		},
 		-- current set threshold of spam filtering
 		-- 0: off, 1: miniman
@@ -105,7 +105,14 @@ end
 -- Set filtering flag on/off
 function addon:ToggleFiltering()
     addon.db.global.message_filter_switch = not addon.db.global.message_filter_switch
-	addon:log("Filtering is " .. tostring(addon.db.global.message_filter_switch))
+	--addon:log("Filtering is " .. tostring(addon.db.global.message_filter_switch))
+
+	if addon.db.global.message_filter_switch then
+		addon:log(L["Chat messages filtering started."])
+	else
+		addon:log(L["Chat messages filtering stopped, but learning engine still running."])
+	end
+
     -- update UI to reflect current filter status
     addon.AcamarGUI:UpdateAddonUIStatus(addon.db.global.message_filter_switch)
 end
@@ -114,13 +121,13 @@ end
 function addon:HookSwitch()
 	if addon.db.global.message_hook_switch then
 		if not addon.AcamarMessage.engine_running then
-			addon:log("Turn on engine...")
+			addon:log(L["Turn on learning engine..."])
 			addon.AcamarMessage:HookOn()
 		end
 	else
 		if addon.AcamarMessage.engine_running then
 			addon.AcamarMessage:HookOff()
-			addon:log("Turn off engine...")
+			addon:log(L["Turn off learning engine..."])
 		end
 	end
 end
@@ -190,6 +197,8 @@ function PrintBannedList(info)
 end
 
 function GetBannedList(max)
+	-- addon:log("GetBannedList")
+
 	local bannedlist = {}
 	local list = ""
 
@@ -212,7 +221,7 @@ function GetBannedList(max)
 
 	local sortedKeys = keysSortedByValue(bannedlist, tcompare)
 
-	list = L["Top players with spam score. Max "] .. max .. "\n"
+	list = L["Top players with spam score. Max "] .. max .. "\n\n"
 	list = list .. L["The list changes along with the learning progress."] .. "\n\n"
 
 	local counter=0
@@ -252,9 +261,6 @@ function GetBannedTable(max)
     	return {"0", L["Learning in progress ..."]}
     end
 
-    addon:log("prec=" .. prec)
-
-
 	local sort_field = "score"
 	function tcompare(a, b)
 		return a[sort_field]>b[sort_field]
@@ -262,7 +268,6 @@ function GetBannedTable(max)
 
 	local sortedKeys = keysSortedByValue(bannedlist, tcompare)
 
-	list["0"] = L["Top players with spam score. Max "] .. max
 	local counter=1
 	for _, key in ipairs(sortedKeys) do
 		spamcolor = "|cffffffff"
@@ -273,13 +278,15 @@ function GetBannedTable(max)
 			end
 		end
 
-		list["" .. counter] =bannedlist[key].name .. " [" .. spamcolor .. bannedlist[key].score .. "|r]" .. "\n"
+		local idx = string.format("%08d", counter)
+
+		list[idx] = bannedlist[key].name .. " [" .. spamcolor .. bannedlist[key].score .. "|r]" .. "\n"
 		counter = counter + 1
 		if counter>500 then
 			break
 		end
     end
-	list["end"] = L["Total players in the list: "] .. counter
+	list["end"] = "|cff00cccc" .. L["Total players in the list: "] .. counter
 
 	return list
 end
@@ -303,9 +310,7 @@ end
 
 function Options.GetOptions(uiType, uiName, appName)
 	if appName == addonName then
-
-		-- calc top 500 list
-		top500list = GetBannedList(500)
+		--top500list = GetBannedList(500)
 
 		local options = {
 			type = "group",
@@ -421,22 +426,30 @@ function Options.GetOptions(uiType, uiName, appName)
 					order = 6.1,
 				},
 
-				--[[
+				----[[
 				header08 = {
 					type = "header",
 					name = "",
 					order = 8.01,
 				},
+				top500_list_desc = {
+					type = "description",
+					name = "|cff00cccc" .. L["Top players with spam score. Max "] .. "500" .. "\n" ..
+						L["The list changes along with the learning progress."] .. "|r",
+					order = 8.02,
+				},
 				top500_list_select = {
 					type = "multiselect",
 					width = "full",
-					name = L["Top 500 spammer list"],
-					descStyle = L["Top 500 spammer list"],
-					values = top500select,
+					disabled = true,
+					name = "",
+					descStyle = L["The list changes along with the learning progress."],
+					values = function(info) return GetBannedTable(500) end,
 					order = 8.1,
 				},
-				]]
+				--]]
 
+				--[[
 				header09 = {
 					type = "header",
 					name = "",
@@ -447,9 +460,10 @@ function Options.GetOptions(uiType, uiName, appName)
 					type = "description",
 					name = top500list,
 					descStyle = L["Top 500 spammer list"],
+					get = function(info) top500list = GetBannedList(500) end,
 					order = 9.1,
 				},
-
+				]]
 			},
 		}
 		return options
