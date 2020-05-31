@@ -1407,7 +1407,7 @@ function timer_compactdb_func()
     		end
 
     		-- remove message field, should comment out in release version if message not saved at all
-			vp.msgs[km].msg = nil    		
+			--vp.msgs[km].msg = nil    		
 
     		--[[
     		-- purge messages sent less than purge_hour_count in all time
@@ -1446,7 +1446,7 @@ function timer_compactdb_func()
     	end
     end
 
-	PlaySound(18019)
+	--PlaySound(18019)
 end
 
 -- set a timer to launch compact db process
