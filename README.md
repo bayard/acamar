@@ -28,6 +28,7 @@ For addon developer: If you intent to use Acamar Spam Engine as your message fil
 ```
 
 Triton@DaggerRidge(CN), 2020
+https://github.com/bayard/acamar
 
 ------
 
@@ -58,7 +59,8 @@ Acamar引入一种概念叫动态黑名单，即：垃圾消息产生者根据�
     end
 ```
 
-Acamar@匕首岭, 2020
+Triton@匕首岭, 2020
+https://github.com/bayard/acamar
 
 ------
 
