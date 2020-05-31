@@ -52,7 +52,7 @@ L["Turn on learning engine..."] = true
 L["Turn off learning engine..."] = true
 
 -- app info
-L["ADDON_INFO"] = '|cffca99ffAcamar|r machine-learning spam blocker addon for WoW.'
+L["ADDON_INFO"] = '|cffca99ffAcamar|r auto-learning spam blocker addon for WoW.'
 
 L["AUTHOR_INFO"] = '|cffca99ffAcamar|r learns user chatting behavior and identify bots and spammers out from normal users, and as more information is learned, the filtering will become more accurate.\n\n' .. 
 "You are use /acamar command or click minimap icon to open tiny control window to pause/resume filtering." ..
