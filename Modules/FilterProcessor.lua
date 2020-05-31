@@ -696,7 +696,7 @@ function FilterProcessor:PreLearning(msgdata)
 	if(pdata == nil) then
 		pdata = {}
 		pdata = {
-			-- name = msgdata.from,  -- for debug purpose, removed in release version to save db space
+			name = msgdata.from,  -- for debug purpose, removed in release version to save db space or leave for easy debug
 			hourwindow = hournumber,
 			hourlycount = 1,
 			daywindow = daynumber,
@@ -799,7 +799,7 @@ function FilterProcessor:BehaviorNewMessage(msgdata)
 	-- get or set messages node
 	addon.db.global.plist[msgdata.guid].msgs[msgdata.hash] = addon.db.global.plist[msgdata.guid].msgs[msgdata.hash] or {
 			len = len,
-			msg = msgdata.message, -- save message, for debug purpose, must be removed in release version
+			--msg = msgdata.message, -- save message, for debug purpose, must be removed in release version
 			spamlike = hassick or notmeaningful,
 			hasicon = hasicon,
 			haslink = haslink,
@@ -814,9 +814,11 @@ function FilterProcessor:BehaviorNewMessage(msgdata)
 			},
 		}
 	-- for debug purpose
+	--[[
 	if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].msg == nil then
 		addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].msg = msgdata.message
 	end
+	]]
 
 	-- to compatible upgrade from existing db
 	if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].samplings.all_time == nil then
@@ -1349,8 +1351,8 @@ function timer_analysis_func()
 
 			if toupdate then
 				--addon:log("Doing update pfeature")
-				-- addon.db.global.pfeatures[kp] = {score = pfeature.score, updatetime=pfeature.updatetime} -- release version
-				addon.db.global.pfeatures[kp] = pfeature -- for debug purpose
+				--addon.db.global.pfeatures[kp] = {score = pfeature.score, name=pfeature.name, updatetime=pfeature.updatetime} -- release version
+				addon.db.global.pfeatures[kp] = pfeature -- for debug or release purpose
 			end
 		end
 
@@ -1404,6 +1406,9 @@ function timer_compactdb_func()
     			vp.msgs[km] = nil
     		end
 
+    		-- remove message field, should comment out in release version if message not saved at all
+			vp.msgs[km].msg = nil    		
+
     		--[[
     		-- purge messages sent less than purge_hour_count in all time
     		if (vm.last_time < ahour_ago) and (vm.samplings.all_time[MSG_COUNT_IDX]<compact_pref.purge_hour_count) then
@@ -1441,7 +1446,7 @@ function timer_compactdb_func()
     	end
     end
 
-	-- PlaySound(18019)
+	PlaySound(18019)
 end
 
 -- set a timer to launch compact db process
@@ -1570,6 +1575,54 @@ if addonName == nil then
 		print(os.time()-1590630091)
 	end
 
-	test8()
+	function test9()
+		package.path = "/Users/acamar/Downloads/tmp/Acamar.lua"
+		v= require "Acamar"
+		
+		local bannedlist = {}
+
+		for k, v in pairs(AcamarDB.global.pfeatures) do
+			if ( v.score >= 0 ) then
+				bannedlist[k] = v
+			end
+	    end
+
+		local sort_field = "score"
+		function tcompare(a, b)
+			return a[sort_field]>b[sort_field]
+		end
+
+		local function sortedByValue(tbl, sortFunction)
+		    local keys = {}
+		    for key in pairs(tbl) do
+		        table.insert(keys, key)
+		    end
+
+		    table.sort(keys, function(a, b)
+		        return sortFunction(tbl[a], tbl[b])
+		    end)
+
+		    return keys
+		end
+
+		local sortedKeys = sortedByValue(bannedlist, tcompare)
+
+		local counter = 0
+		for _, key in ipairs(sortedKeys) do
+			counter = counter + 1
+			print( tostring(counter) .. ", " .. bannedlist[key].name .. " :[" .. bannedlist[key].score .. "]")
+			pnode = AcamarDB.global.plist[key]
+			if pnode ~= nil then
+				if pnode.msgs ~= nil then
+					for mk, mv in pairs(pnode.msgs) do
+						print("", mv.msg)
+					end
+				end
+			end
+			print("")
+	    end
+   	end
+
+	test9()
 end
 -- EOF

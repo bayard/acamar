@@ -32,6 +32,11 @@ L["Block bots and spammers"] = true
 L["Block bots only"] = true
 L["Turn On Engine"] = true
 L["Turn on messages filtering and learning engine. If turn off, messages will not be filtered."] = true
+L["Engine Settings"] = true
+L["Advanced Settings"] = true
+L["Spam score"] = true
+L["About"] = true
+L["ABOUT_INFO"] = "|cffca99ffAcamar|r is 49 parsecs away from the sun, while |cffca99ffTriton|r is only 0.00014567 parsecs."
 
 -- logs
 L["Acamar control window opened."] = true

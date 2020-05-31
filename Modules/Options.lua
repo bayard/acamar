@@ -5,11 +5,11 @@ local LSM = LibStub("LibSharedMedia-3.0")
 local WidgetLists = AceGUIWidgetLSMlists
 --------------------------------------------------------------------------------------------------------
 
-local SPAM_LEVEL_1 = 0.05
-local SPAM_LEVEL_2 = 0.2
-local SPAM_LEVEL_3 = 0.5
-local SPAM_LEVEL_4 = 1
-local SPAM_LEVEL_5 = 3
+local SPAM_LEVEL_1 = 0.02
+local SPAM_LEVEL_2 = 0.3
+local SPAM_LEVEL_3 = 1
+local SPAM_LEVEL_4 = 2
+local SPAM_LEVEL_5 = 3.3
 
 addon.spammercolor = {
 	{SPAM_LEVEL_5, "|cfff51000"},
@@ -312,7 +312,7 @@ function Options.GetOptions(uiType, uiName, appName)
 	if appName == addonName then
 		--top500list = GetBannedList(500)
 
-		local options = {
+		local options  = {
 			type = "group",
 			name = addon.METADATA.NAME .. " (" .. addon.METADATA.VERSION .. ")",
 			get = function(info)
@@ -328,144 +328,143 @@ function Options.GetOptions(uiType, uiName, appName)
 					]]
 				end,
 			args = {
+				main_settings = {
+					type = "group",
+					childGroups = "tab",
+					name = L["Engine Settings"],
+					order = 1.0,
+					args = {
+						addoninfo = {
+							type = "description",
+							name = L["ADDON_INFO"],
+							descStyle = L["ADDON_INFO"],
+							order = 0.1,
+						},
 
-				addoninfo = {
-					type = "description",
-					name = L["ADDON_INFO"],
-					descStyle = L["ADDON_INFO"],
-					order = 0.1,
-				},
+						header01 = {
+							type = "header",
+							name = "",
+							order = 1.01,
+						},
 
-				header01 = {
-					type = "header",
-					name = "",
-					order = 1.01,
-				},
+						filtering_level = {
+							type = "select",
+							width = "full",
+							name = L["Filtering Level"],
+							desc = L["Set messages filtering level"],
+							values = { 	
+										--["0"] = L["Off"],
+										["1"] = L["Most strict level with minimum spam"] .. " [" .. SPAM_LEVEL_1 .. "]",
+										["2"] = L["Bots, spammers, annoying senders and talkative players away"] .. " [" .. SPAM_LEVEL_2 .. "]",
+										["3"] = L["Block bots, spammers and annoying messages"] .. " [" .. SPAM_LEVEL_3 .. "]",
+										["4"] = L["Block bots and spammers"] .. " [" .. SPAM_LEVEL_4 .. "]",
+										["5"] = L["Block bots only"] .. " [" .. SPAM_LEVEL_5 .. "]",
+									},
+							get = function(info)
+									return addon.db.global[info[#info]] or ""
+								end,
+							set = function(info, value)
+									addon.db.global[info[#info]] = value
+									addon.FilterProcessor:UpdateFilterScore(value)
+								end,
+							order = 1.1,
+						},
 
-				filtering_level = {
-					type = "select",
-					width = "full",
-					name = L["Filtering Level"],
-					desc = L["Set messages filtering level"],
-					values = { 	
-								--["0"] = L["Off"],
-								["1"] = L["Most strict level with minimum spam"] .. " [" .. SPAM_LEVEL_1 .. "]",
-								["2"] = L["Bots, spammers, annoying senders and talkative players away"] .. " [" .. SPAM_LEVEL_2 .. "]",
-								["3"] = L["Block bots, spammers and annoying messages"] .. " [" .. SPAM_LEVEL_3 .. "]",
-								["4"] = L["Block bots and spammers"] .. " [" .. SPAM_LEVEL_4 .. "]",
-								["5"] = L["Block bots only"] .. " [" .. SPAM_LEVEL_5 .. "]",
-							},
-					get = function(info)
-							return addon.db.global[info[#info]] or ""
-						end,
-					set = function(info, value)
-							addon.db.global[info[#info]] = value
-							addon.FilterProcessor:UpdateFilterScore(value)
-						end,
-					order = 1.1,
-				},
+						header06 = {
+							type = "header",
+							name = "",
+							order = 2.01,
+						},
 
-				header02 = {
-					type = "header",
-					name = "",
-					order = 2.01,
-				},
-
-				message_hook_switch = {
-					type = "toggle",
-					width = "full",
-					name = L["Turn On Engine"],
-					desc = L["Turn on messages filtering and learning engine. If turn off, messages will not be filtered."],
-					width = "normal",
-					set = function(info,val) 
-							addon.db.global.message_hook_switch = val 
-							addon:HookSwitch()
-						end,
-      				get = function(info) 
-      						return addon.db.global.message_hook_switch 
-      					end,
-					order = 2.1,
+						authorinfo = {
+							type = "description",
+							name = L["AUTHOR_INFO"],
+							descStyle = L["AUTHOR_INFO"],
+							order = 2.1,
+						},
+					},
 				},
 
-				header03 = {
-					type = "header",
-					name = "",
-					order = 3.01,
+				adv_settings = {
+					type = "group",
+					childGroups = "tab",
+					name = L["Advanced Settings"],
+					order = 3.0,
+					args = {
+						message_hook_switch = {
+							type = "toggle",
+							width = "full",
+							name = L["Turn On Engine"],
+							desc = L["Turn on messages filtering and learning engine. If turn off, messages will not be filtered."],
+							width = "normal",
+							set = function(info,val) 
+									addon.db.global.message_hook_switch = val 
+									addon:HookSwitch()
+								end,
+		      				get = function(info) 
+		      						return addon.db.global.message_hook_switch 
+		      					end,
+							order = 3.1,
+						},
+
+						header03 = {
+							type = "header",
+							name = "",
+							order = 5.01,
+						},
+
+						command_cleardb = {
+							type = "execute",
+							width = "normal",
+							name = L["Reset and re-learn"],
+							confirm = true,
+							desc = L["Reset DB to initial status and begin to re-learn players' behavior."],
+							func = function(info) ResetAcamarDB(info) end,
+							order = 5.1,
+						},
+					},
 				},
 
-				command_cleardb = {
-					type = "execute",
-					width = "normal",
-					name = L["Reset and re-learn"],
-					confirm = true,
-					desc = L["Reset DB to initial status and begin to re-learn players' behavior."],
-					func = function(info) ResetAcamarDB(info) end,
-					order = 3.1,
-				},
-				--[[
-				command_print_blocking = {
-					type = "execute",
-					width = "normal",
-					name = L["Top 500 spammers"],
-					confirm = true,
-					desc = L["Print current banned player list in chat window."],
-					func = function(info) PrintBannedList(info) end,
-					order = 3.2,
-				},
-				]]
-				header06 = {
-					type = "header",
-					name = "",
-					order = 6.01,
+				spamscore_panel = {
+					type = "group",
+					childGroups = "tab",
+					name = L["Spam score"],
+					order = 7.0,
+					args = {
+						top500_list_desc = {
+							type = "description",
+							name = "|cff00cccc" .. L["Top players with spam score. Max "] .. "500" .. "\n" ..
+								L["The list changes along with the learning progress."] .. "|r",
+							order = 8.02,
+						},
+						top500_list_select = {
+							type = "multiselect",
+							width = "full",
+							disabled = true,
+							name = "",
+							descStyle = L["The list changes along with the learning progress."],
+							values = function(info) return GetBannedTable(500) end,
+							order = 8.1,
+						},								
+					},
 				},
 
-				authorinfo = {
-					type = "description",
-					name = L["AUTHOR_INFO"],
-					descStyle = L["AUTHOR_INFO"],
-					order = 6.1,
+				about_panel = {
+					type = "group",
+					childGroups = "tab",
+					name = L["About"],
+					order = 9.0,
+					args = {
+						top500_list_desc = {
+							type = "description",
+							name = L["ABOUT_INFO"],
+							order = 9.01,
+						},
+					},
 				},
-
-				----[[
-				header08 = {
-					type = "header",
-					name = "",
-					order = 8.01,
-				},
-				top500_list_desc = {
-					type = "description",
-					name = "|cff00cccc" .. L["Top players with spam score. Max "] .. "500" .. "\n" ..
-						L["The list changes along with the learning progress."] .. "|r",
-					order = 8.02,
-				},
-				top500_list_select = {
-					type = "multiselect",
-					width = "full",
-					disabled = true,
-					name = "",
-					descStyle = L["The list changes along with the learning progress."],
-					values = function(info) return GetBannedTable(500) end,
-					order = 8.1,
-				},
-				--]]
-
-				--[[
-				header09 = {
-					type = "header",
-					name = "",
-					order = 9.01,
-				},
-
-				top500_list = {
-					type = "description",
-					name = top500list,
-					descStyle = L["Top 500 spammer list"],
-					get = function(info) top500list = GetBannedList(500) end,
-					order = 9.1,
-				},
-				]]
 			},
 		}
+
 		return options
 	end
 end

@@ -2,7 +2,6 @@ local addonName, _ = ...
 local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "zhCN")
 if not L then return end
 ------------------------------------------------------------------------------
-
 L["|cffffff00Click|r to toggle the Acamar main window."] = "|cffffff00点击|r图标打开Acamar控制窗口"
 
 L["Enter /acamar for Acamar engine main interface"] = "输入 /acamar 打开Acamar自学习垃圾消息插件控制窗口"
@@ -31,6 +30,12 @@ L["Block bots and spammers"] = "禁止脚本、垃圾信息"
 L["Block bots only"] = "禁止脚本型玩家"
 L["Turn On Engine"] = "启用Acamar引擎"
 L["Turn on messages filtering and learning engine. If turn off, messages will not be filtered."] = "如果关闭，消息过滤及学习都将被停止。"
+L["Engine Settings"] = "基本设置"
+L["Advanced Settings"] = "高级设置"
+L["Spam score"] = "评分列表"
+L["About"] = "关于"
+L["ABOUT_INFO"] = "|cffca99ffAcamar|r 距离太阳49pc，|cffca99ffTriton|r才0.00014567pc。"
+
 
 -- logs
 L["Acamar control window opened."] = "Acamar控制窗口已打开。"
