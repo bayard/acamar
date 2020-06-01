@@ -1,4 +1,4 @@
-### Acamar, auto-learning spam blocker of WoW classic addon.
+### Acamar, auto-learning spam blocker of WoW addon.
 
 Acamar learns player's chatting behavior and identify bots and spammers out from normal users. You don't need to configure keywords, just simply select the level of filtering and the addon will begin to learn, and as more information is learned, the filtering will become more accurate. 
 
@@ -33,6 +33,8 @@ For addon developer: If you intent to use Acamar Spam Engine as your message fil
         end
     end
 ```
+
+Acamar support both retail and classic of WoW. But not fully tested on retail version.
 
 Triton@DaggerRidge(CN), 2020
 https://github.com/bayard/acamar
@@ -72,6 +74,8 @@ Acamar引入一种概念叫动态黑名单，即：垃圾消息产生者根据�
         end
     end
 ```
+
+Acamar 支持怀旧服和正式服。不过正式服上没有经过完全测试。
 
 Triton@匕首岭, 2020
 https://github.com/bayard/acamar

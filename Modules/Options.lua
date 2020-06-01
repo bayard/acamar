@@ -258,7 +258,7 @@ function GetBannedTable(max)
     end
 
     if prec == 0 then
-    	return {"0", L["Learning in progress ..."]}
+    	return {["0"] = L["Learning in progress ..."]}
     end
 
 	local sort_field = "score"
