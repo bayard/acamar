@@ -11,7 +11,7 @@ Acamar introduces the concept of dynamic blacklist: Once identified as spammer, 
 No configuration needed.
 
 Filtering applies to following messages:
-1. Channel chat
+1. Channel chat (Guild, team and Raid messges were ignored,)
 2. Say
 3. Yell
 4. Custom emote
@@ -52,7 +52,7 @@ Acamar引入一种概念叫动态黑名单，即：垃圾消息产生者根据�
 无需配置。
 
 过滤对下列消息有效：
-1. 频道聊天，包括世界频道
+1. 频道聊天，包括世界频道 (公会、组队、RAiD频道消息不会被过滤)
 2. 说话
 3. 大喊
 4. 自定义表情
