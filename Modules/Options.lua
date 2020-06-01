@@ -61,6 +61,8 @@ Options.defaults = {
 		prelearning = {},
 		-- font size
 		fontsize = 12.8,
+		-- output log messages when begin learning on player and found new player with spam score
+		do_not_disturb = false,
 		-- ui window save status
 		ui = {
 			height = 50,
@@ -370,17 +372,38 @@ function Options.GetOptions(uiType, uiName, appName)
 							order = 1.1,
 						},
 
-						header06 = {
+						header03 = {
 							type = "header",
 							name = "",
 							order = 2.01,
+						},
+
+						do_not_disturb = {
+							type = "toggle",
+							width = "full",
+							name = L["Do not disturb"],
+							desc = L["Enable to bypass printing of progress messages (like talkative player added into learning) in chat window."],
+							width = "normal",
+							set = function(info,val) 
+									addon.db.global.do_not_disturb = val 
+								end,
+		      				get = function(info) 
+		      						return addon.db.global.do_not_disturb 
+		      					end,
+							order = 2.1,
+						},
+
+						header06 = {
+							type = "header",
+							name = "",
+							order = 3.01,
 						},
 
 						authorinfo = {
 							type = "description",
 							name = L["AUTHOR_INFO"],
 							descStyle = L["AUTHOR_INFO"],
-							order = 2.1,
+							order = 3.1,
 						},
 					},
 				},
@@ -389,7 +412,7 @@ function Options.GetOptions(uiType, uiName, appName)
 					type = "group",
 					childGroups = "tab",
 					name = L["Advanced Settings"],
-					order = 3.0,
+					order = 5.0,
 					args = {
 						message_hook_switch = {
 							type = "toggle",
@@ -404,13 +427,13 @@ function Options.GetOptions(uiType, uiName, appName)
 		      				get = function(info) 
 		      						return addon.db.global.message_hook_switch 
 		      					end,
-							order = 3.1,
+							order = 5.1,
 						},
 
 						header03 = {
 							type = "header",
 							name = "",
-							order = 5.01,
+							order = 6.01,
 						},
 
 						command_cleardb = {
@@ -420,7 +443,7 @@ function Options.GetOptions(uiType, uiName, appName)
 							confirm = true,
 							desc = L["Reset DB to initial status and begin to re-learn players' behavior."],
 							func = function(info) ResetAcamarDB(info) end,
-							order = 5.1,
+							order = 6.1,
 						},
 					},
 				},

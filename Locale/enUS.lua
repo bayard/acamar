@@ -37,6 +37,8 @@ L["Advanced Settings"] = true
 L["Spam score"] = true
 L["About"] = true
 L["ABOUT_INFO"] = "|cffca99ffAcamar|r is 49 parsecs away from the sun, while |cffca99ffTriton|r is only 0.00014567 parsecs."
+L["Do not disturb"] = true
+L["Enable to bypass printing of progress messages (like talkative player added into learning) in chat window."] = true
 
 -- logs
 L["Acamar control window opened."] = true

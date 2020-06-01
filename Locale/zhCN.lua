@@ -35,7 +35,8 @@ L["Advanced Settings"] = "高级设置"
 L["Spam score"] = "评分列表"
 L["About"] = "关于"
 L["ABOUT_INFO"] = "|cffca99ffAcamar|r 距离太阳49pc，|cffca99ffTriton|r才0.00014567pc。"
-
+L["Do not disturb"] = "尽量勿扰模式"
+L["Enable to bypass printing of progress messages (like talkative player added into learning) in chat window."] = "如果启用，类如多话玩家被加入学习等信息将不会打印到聊天窗口。"
 
 -- logs
 L["Acamar control window opened."] = "Acamar控制窗口已打开。"

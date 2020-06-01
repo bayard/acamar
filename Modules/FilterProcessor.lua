@@ -592,6 +592,8 @@ end
 function FilterProcessor:OnNewMessage(...)
 	local msgdata = ...
 
+	-- addon:log("addon.db.global.do_not_disturb=" .. tostring(addon.db.global.do_not_disturb))
+
 	if msgdata.guid == nil or msgdata.guid == "" then
 		-- addon:log("Empty guid, skipped")
 		return false, 0
@@ -722,7 +724,9 @@ function FilterProcessor:PreLearning(msgdata)
 					pdata.penaltycount = 0
 					-- mark the user should be removed from learning process
 					pdata.learning = false
-					addon:log(msgdata.from .. L["'s behavior return normal and removed from the learning process."])
+					if not addon.db.global.do_not_disturb then
+						addon:log(msgdata.from .. L["'s behavior return normal and removed from the learning process."])
+					end
 				else
 					pdata.penaltywindow = penaltynumber
 					pdata.penaltycount = 1
@@ -750,12 +754,16 @@ function FilterProcessor:PreLearning(msgdata)
 			-- check hourly count beyond threshold, mark the user should be learned
 			if pdata.hourlycount>addon.db.global.hourly_learning_threshold then
 				pdata.learning = true
-				addon:log(msgdata.from .. L[" was talkative in last hour and added to learning process."])
+				if not addon.db.global.do_not_disturb then
+					addon:log(msgdata.from .. L[" was talkative in last hour and added to learning process."])
+				end
 			else
 				-- if daily count exceed threshold
 				if pdata.dailycount>addon.db.global.daily_learning_threshold then
 					pdata.learning = true
-					addon:log(msgdata.from .. L[" was talkative in last day and added to learning process."])
+					if not addon.db.global.do_not_disturb then
+						addon:log(msgdata.from .. L[" was talkative in last day and added to learning process."])
+					end
 				end
 			end
 		end
@@ -1316,7 +1324,9 @@ function timer_analysis_func()
 
 			-- if new, to update
 			if last_feature == nil then
-				addon:log(L["Found new possible spammer: "] .. pfeature.name)
+				if not addon.db.global.do_not_disturb then
+					addon:log(L["Found new possible spammer: "] .. pfeature.name)
+				end
 				toupdate = true
 			else
 				-- diff precision set to hundredth
