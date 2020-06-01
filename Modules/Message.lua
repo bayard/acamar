@@ -177,7 +177,7 @@ local chatEvents = (
         "CHAT_MSG_SAY",
         "CHAT_MSG_YELL",
         "CHAT_MSG_EMOTE",
-        
+        "CHAT_MSG_WHISPER",
     })
     
 function AcamarMessage:HookOn()

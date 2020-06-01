@@ -10,6 +10,13 @@ Acamar introduces the concept of dynamic blacklist: Once identified as spammer, 
 
 No configuration needed.
 
+Filtering applies to following messages:
+1. Channel chat
+2. Say
+3. Yell
+4. Custom emote
+5. Whisper
+
 For addon developer: If you intent to use Acamar Spam Engine as your message filter, API code sample:
 
 ```lua
@@ -43,6 +50,13 @@ Acamar学习用户的聊天行为，从中辨识出正常玩家、垃圾发送�
 Acamar引入一种概念叫动态黑名单，即：垃圾消息产生者根据行为轻重，会被禁止几小时、几天、甚至几年。当不在发垃圾消息后，会逐渐降低垃圾得分，直至移出黑名单。
 
 无需配置。
+
+过滤对下列消息有效：
+1. 频道聊天，包括世界频道
+2. 说话
+3. 大喊
+4. 自定义表情
+5. 私语
 
 插件开发者可以通过下面的代码来使用Acamar API在自己开发的插件中过滤用户：
 
