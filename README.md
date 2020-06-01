@@ -1,17 +1,17 @@
-### Acamar, auto-learning spam blocker of WoW addon.
+### Acamar, auto-learning spam blocker.
 
 Acamar learns player's chatting behavior and identify bots and spammers out from normal users. You don't need to configure keywords, just simply select the level of filtering and the addon will begin to learn, and as more information is learned, the filtering will become more accurate. 
 
-In most cases, 90 minutes after running, 90% spammer should be identified and could be blocked, and >95% spammer should be identified after running for 1 day. Spammers may change their ways to bypass the filering, but hit rate will remain high unlese spammers' behavior act like normal users and thus makes they become not so annoying. 
+In most cases, 90 minutes after running, 90% spammer should be identified and could be blocked, and >95% spammer should be identified after running for 1 day. Spammers may change their ways to bypass the filering, but hit rate will remain high unless spammers' behavior act like normal users and thus makes they become not so annoying. 
 
-Highly talkative users may be identified a spammer, but they will be removed from blacklist after certain period of being less talkative, or filtering level could be set to less strict level to avoid blocking of these users.
+Highly talkative users may be identified as spammers, but they will be removed from blacklist after certain period of being less talkative, or filtering level could be set to less strict level to avoid blocking of these users.
 
 Acamar introduces the concept of dynamic blacklist: Once identified as spammer, the player will be banned for hours or days or years, depends on how heavy the player spammed, and will gradually return to normal once stop spamming.
 
 No configuration needed.
 
 Filtering applies to following messages:
-1. Channel chat (Guild, team and Raid messges were ignored,)
+1. Channel chat (Guild, team and Raid messages were ignored,)
 2. Say
 3. Yell
 4. Custom emote

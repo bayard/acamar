@@ -171,28 +171,59 @@ end
 
 -- only listen to events with spams
 -- don't filter messages in RAID, GUILD, and others
-local chatEvents = (
-    {
+local chatEvents = 
+{
+    [addon.MSG_FILTER_CHANNEL_SET_NORMAL] = {
         "CHAT_MSG_CHANNEL",
         "CHAT_MSG_SAY",
         "CHAT_MSG_YELL",
         "CHAT_MSG_EMOTE",
         "CHAT_MSG_WHISPER",
-    })
-    
-function AcamarMessage:HookOn()
-    -- addon:log("Hooking messages")
+    },
+    [addon.MSG_FILTER_CHANNEL_SET_PLUS_PARTY_RAID] = {
+        "CHAT_MSG_CHANNEL",
+        "CHAT_MSG_SAY",
+        "CHAT_MSG_YELL",
+        "CHAT_MSG_EMOTE",
+        "CHAT_MSG_WHISPER",
+        "CHAT_MSG_PARTY",
+        "CHAT_MSG_RAID",
+    },
+    [addon.MSG_FILTER_CHANNEL_SET_PLUS_GUILD] = {
+        "CHAT_MSG_CHANNEL",
+        "CHAT_MSG_SAY",
+        "CHAT_MSG_YELL",
+        "CHAT_MSG_EMOTE",
+        "CHAT_MSG_WHISPER",
+        "CHAT_MSG_GUILD",
+    },
+    [addon.MSG_FILTER_CHANNEL_SET_PLUS_BOTH] = {
+        "CHAT_MSG_CHANNEL",
+        "CHAT_MSG_SAY",
+        "CHAT_MSG_YELL",
+        "CHAT_MSG_EMOTE",
+        "CHAT_MSG_WHISPER",
+        "CHAT_MSG_GUILD",
+        "CHAT_MSG_PARTY",
+        "CHAT_MSG_RAID",
+    },
+}
 
-    for key, value in pairs (chatEvents) do
+function AcamarMessage:HookOn( channels )
+    addon:log(L["Message filtering running ..."])
+    --addon:log("Hooking messages " .. channels)
+
+    for key, value in pairs (chatEvents[channels]) do
         ChatFrame_AddMessageEventFilter(value, acamarFilter)
     end
     self.engine_running = true
 end
 
-function AcamarMessage:HookOff()
-    -- addon:log("Unhooking messages")
+function AcamarMessage:HookOff( channels )
+    addon:log(L["Message filtering stopped."])
+    --addon:log("Unhooking messages " .. channels)
 
-    for key, value in pairs (chatEvents) do
+    for key, value in pairs (chatEvents[channels]) do
         ChatFrame_RemoveMessageEventFilter(value, acamarFilter)
     end
     self.engine_running = false

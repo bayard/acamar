@@ -592,7 +592,7 @@ end
 function FilterProcessor:OnNewMessage(...)
 	local msgdata = ...
 
-	-- addon:log("addon.db.global.do_not_disturb=" .. tostring(addon.db.global.do_not_disturb))
+	--addon:log("addon.db.global.do_not_disturb=" .. tostring(addon.db.global.do_not_disturb))
 
 	if msgdata.guid == nil or msgdata.guid == "" then
 		-- addon:log("Empty guid, skipped")

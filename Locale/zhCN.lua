@@ -38,6 +38,17 @@ L["ABOUT_INFO"] = "|cffca99ffAcamar|r 距离太阳49pc，|cffca99ffTriton|r才0.
 L["Do not disturb"] = "尽量勿扰模式"
 L["Enable to bypass printing of progress messages (like talkative player added into learning) in chat window."] = "如果启用，类如多话玩家被加入学习等信息将不会打印到聊天窗口。"
 
+L["Regular(LFG, World, Trade, etc.)"] = "常规频道(寻找团队、世界频道、交易频道等)"
+L["Regular and party/raid"] = "常规以及小队/团队频道"
+L["Regular and guild"] = "常规以及公会频道"
+L["Regular, guild and party/raid"] = "常规、公会以及小队/团队频道" 
+L["Filtering Channels"] = "过滤哪些频道"
+L["Select channels to filtered"] = "选择要过滤的频道"
+L["FILTER_CHANNEL_NOTE"] = "为了不遗漏重要消息，公会官员以及团队领袖频道任何情况下都不会过滤。"
+
+L["Message filtering running ..."] = "开始进行消息过滤..."
+L["Message filtering stopped."] = "消息过滤停止。"
+
 -- logs
 L["Acamar control window opened."] = "Acamar控制窗口已打开。"
 L["At current level, block spam score set to: "] = "当前过滤级别对应的垃圾得分为："

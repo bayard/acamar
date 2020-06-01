@@ -40,6 +40,17 @@ L["ABOUT_INFO"] = "|cffca99ffAcamar|r is 49 parsecs away from the sun, while |cf
 L["Do not disturb"] = true
 L["Enable to bypass printing of progress messages (like talkative player added into learning) in chat window."] = true
 
+L["Regular(LFG, World, Trade, etc.)"] = true
+L["Regular and party/raid"] = true
+L["Regular and guild"] = true
+L["Regular, guild and party/raid"] = true
+L["Filtering Channels"] = true
+L["Select channels to filtered"] = true
+L["FILTER_CHANNEL_NOTE"] = "Guid officer and RAID leader channels would not be filtered in any case."
+
+L["Message filtering running ..."] = true
+L["Message filtering stopped."] = true
+
 -- logs
 L["Acamar control window opened."] = true
 L["At current level, block spam score set to: "] = true

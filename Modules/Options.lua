@@ -5,6 +5,20 @@ local LSM = LibStub("LibSharedMedia-3.0")
 local WidgetLists = AceGUIWidgetLSMlists
 --------------------------------------------------------------------------------------------------------
 
+addon.MSG_FILTER_CHANNEL_SET_NORMAL = "1:NORMAL"
+addon.MSG_FILTER_CHANNEL_SET_PLUS_PARTY_RAID = "2:PLUS_TEAM"
+addon.MSG_FILTER_CHANNEL_SET_PLUS_GUILD = "3:PLUS_GUILD"
+addon.MSG_FILTER_CHANNEL_SET_PLUS_BOTH = "4:PLUS_BOTH"
+
+local channel_sets_desc = {
+	[addon.MSG_FILTER_CHANNEL_SET_NORMAL] = L["Regular(LFG, World, Trade, etc.)"],
+	[addon.MSG_FILTER_CHANNEL_SET_PLUS_PARTY_RAID] = L["Regular and party/raid"],
+	[addon.MSG_FILTER_CHANNEL_SET_PLUS_GUILD] = L["Regular and guild"],
+	[addon.MSG_FILTER_CHANNEL_SET_PLUS_BOTH] = L["Regular, guild and party/raid"],
+}
+
+-------- 
+
 local SPAM_LEVEL_1 = 0.02
 local SPAM_LEVEL_2 = 0.3
 local SPAM_LEVEL_3 = 1
@@ -27,6 +41,8 @@ Options.defaults = {
 		message_filter_switch = true,
 		-- hook engine on/off
 		message_hook_switch = true,
+		-- filter channels settings
+		filter_channel_set = addon.MSG_FILTER_CHANNEL_SET_NORMAL,
 		-- analysis run params
 		analysis = {
 			interval = 600,
@@ -124,11 +140,11 @@ function addon:HookSwitch()
 	if addon.db.global.message_hook_switch then
 		if not addon.AcamarMessage.engine_running then
 			addon:log(L["Turn on learning engine..."])
-			addon.AcamarMessage:HookOn()
+			addon.AcamarMessage:HookOn(addon.db.global.filter_channel_set)
 		end
 	else
 		if addon.AcamarMessage.engine_running then
-			addon.AcamarMessage:HookOff()
+			addon.AcamarMessage:HookOff(addon.db.global.filter_channel_set)
 			addon:log(L["Turn off learning engine..."])
 		end
 	end
@@ -370,6 +386,35 @@ function Options.GetOptions(uiType, uiName, appName)
 									addon.FilterProcessor:UpdateFilterScore(value)
 								end,
 							order = 1.1,
+						},
+
+						header02 = {
+							type = "header",
+							name = "",
+							order = 1.51,
+						},
+
+						filter_channel_set = {
+							type = "select",
+							width = "full",
+							name = L["Filtering Channels"],
+							desc = L["Select channels to filtered"],
+							values = channel_sets_desc,
+							get = function(info)
+									return addon.db.global[info[#info]] or ""
+								end,
+							set = function(info, value)
+									addon.AcamarMessage:HookOff(addon.db.global.filter_channel_set)
+									addon.db.global[info[#info]] = value
+									addon.AcamarMessage:HookOn(addon.db.global.filter_channel_set)
+								end,
+							order = 1.6,
+						},
+
+						filter_channel_note = {
+							type = "description",
+							name = L["FILTER_CHANNEL_NOTE"],
+							order = 1.7,
 						},
 
 						header03 = {
