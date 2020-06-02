@@ -592,7 +592,7 @@ end
 function FilterProcessor:OnNewMessage(...)
 	local msgdata = ...
 
-	--addon:log("addon.db.global.do_not_disturb=" .. tostring(addon.db.global.do_not_disturb))
+	--addon:log("OnNewMessage: " .. msgdata.from)
 
 	if msgdata.guid == nil or msgdata.guid == "" then
 		-- addon:log("Empty guid, skipped")
@@ -1474,6 +1474,145 @@ end
 function FilterProcessor:SetupCompactDBTimer()
     FilterProcessor.compactdbTimer = C_Timer.NewTimer(2, timer_compactdb_func)
 end
+
+
+------------------------------------------------------------------------
+-- unicode table to utf8
+local function unicode_tbl_to_utf8(tbl)
+
+    local rets=""
+    for i = 1, #tbl, 1 do
+        local unicode = tbl[i]
+
+        if unicode <= 0x007f then
+            rets=rets..string.char(bit.band(unicode,0x7f))
+        elseif unicode >= 0x0080 and unicode <= 0x07ff then
+            rets=rets..string.char(bit.bor(0xc0,bit.band(bit.rshift(unicode,6),0x1f)))
+            rets=rets..string.char(bit.bor(0x80,bit.band(unicode,0x3f)))
+        elseif unicode >= 0x0800 and unicode <= 0xffff then
+            rets=rets..string.char(bit.bor(0xe0,bit.band(bit.rshift(unicode,12),0x0f)))
+            rets=rets..string.char(bit.bor(0x80,bit.band(bit.rshift(unicode,6),0x3f)))
+            rets=rets..string.char(bit.bor(0x80,bit.band(unicode,0x3f)))
+        end
+    end
+    --rets=rets..'\0'
+    return rets
+end
+
+-- utf8 to unicode table
+function utf8_to_tbl(utf8str)
+	assert(type(utf8str) == "string")
+	local res, seq, val = {}, 0, nil
+	for i = 1, #utf8str do
+		local c = string.byte(utf8str, i)
+		if seq == 0 then
+			table.insert(res, val)
+			seq = c < 0x80 and 1 or c < 0xE0 and 2 or c < 0xF0 and 3 or
+			      c < 0xF8 and 4 or --c < 0xFC and 5 or c < 0xFE and 6 or
+				  error("invalid UTF-8 character sequence")
+			val = bit.band(c, 2^(8-seq) - 1)
+		else
+			val = bit.bor(bit.lshift(val, 6), bit.band(c, 0x3F))
+		end
+		seq = seq - 1
+	end
+	table.insert(res, val)
+	return res
+end
+
+-- get factors
+-- exclude 1, self, 2, self/2
+function defactor_atleast_2(n)
+	local sqrt = math.floor(math.sqrt(n))
+  	local factors = {}
+  	for i=2, sqrt do
+    	div = n / i
+    	if div == math.floor(div) then
+      		factors[i] = true
+      		factors[div] = true
+    	end
+  	end
+
+  	return factors
+end
+
+function tbl_subrange(t, first, last)
+	local sub = {}
+	for i=first,last do
+		sub[#sub + 1] = t[i]
+	end
+	return sub
+end
+
+function comparetables(t1, t2)
+ 	if #t1 ~= #t2 then return false end
+ 	for i=1,#t1 do
+    	if t1[i] ~= t2[i] then return false end
+ 	end
+ 	return true
+end
+
+-- remove all repeat chars
+function remove_char_repeats_fast(str) 
+	local t = utf8_to_tbl(str)
+	local rt = {}
+	local rk = {}
+
+	for i=1, #t, 1 do
+		if not rk[ t[i] ] then
+			rk[ t[i] ] = true
+			table.insert(rt, t[i])
+		end
+	end
+
+	return unicode_tbl_to_utf8(rt)
+end
+
+-- get only repeat string if a string contains only the repeat pattern
+function find_repeat_pattern_fast(str) 
+	local t = utf8_to_tbl(str)
+
+	local len = #t
+	fs = defactor_atleast_2(len)
+	
+	-- sort factors from low to high
+	local tkeys = {}
+	for k in pairs(fs) do table.insert(tkeys, k) end
+	table.sort(tkeys)
+
+	local prev = nil
+
+	-- loop keys
+	for _, k in ipairs(tkeys) do
+		if(k>=2) then
+			-- print(v)
+			prev = nil
+			local identical = true
+			local parts = math.floor(len/k)
+			for i=0, parts-1, 1 do
+				--print("len=", v, ", parts=", parts)
+				--subt = tbl_subrange(t, (i-1)*sublen+1, sublen)
+				subt = tbl_subrange(t, i*k+1, (i+1)*k)
+				--print(unicode_tbl_to_utf8(subt))
+				if(prev ~=nil) then
+					if not comparetables(prev, subt) then
+						-- found diff
+						identical = false
+						break
+					end
+				end
+				prev = subt
+			end
+			-- if found shortest length, convert the unicode table to utf8
+			if(identical) then
+				return unicode_tbl_to_utf8(prev)
+			end
+		end
+	end
+	return nil
+end
+------------------------------------------------------------------------
+
 ---------------------------
 -- test functions
 if addonName == nil then
@@ -1644,6 +1783,35 @@ if addonName == nil then
 	    end
    	end
 
-	test9()
+   	function test10()
+   		a5="JJC兽人老高已出 来需求的老板JJC兽人老高已出 来需求的老板JJC兽人老高已出 来需求的老板JJC兽人老高已出 来需求的老板"
+		s = find_repeat_pattern_fast(a5)
+		print(s)
+
+		s = remove_char_repeats(a5)
+		print(s)
+   	end
+
+	local function remsg(ori)
+	    local modifymsg = nil
+	    local len = string.len(ori)
+	    if((len>=4) and (len%2==0)) then
+	        modifymsg = find_repeat_pattern_fast(ori)
+	    end
+
+	    if(modifymsg == nil) then
+	        modifymsg = remove_char_repeats(ori)
+	    end
+
+	    return modifymsg
+	end
+
+   	function test11()
+   		a5="JJC兽人老高已出 来需求的老板JJC兽人老高已出 来需求的老板JJC兽人老高已出 来需求的老板JJC兽人老高已出 来需求的老板"
+		s = remsg(a5)
+		print(s)
+   	end
+
+	test11()
 end
 -- EOF

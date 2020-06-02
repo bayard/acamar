@@ -10,8 +10,11 @@ local serverName = GetRealmName()
 -- debug purpose, should change upon module load status
 Acamar_Loaded = true
 
+local REWRITE_PREFIX = L["[RW] "]
+
 local prevLineID = 0
 local modifyMsg = nil
+local block = nil
 
 --[[
 sample data
@@ -32,7 +35,132 @@ sample data
 },
 ]]
 
+local function RewriteMessage(ori)
+    if (ori == nil) then
+        return nil
+    end
+
+    local len = string.len(ori)
+
+    if len<2 then
+        return ori
+    end
+
+    local mmsg = nil
+
+    if((len>=4) and (len%2==0)) then
+        mmsg = find_repeat_pattern_fast(ori)
+    end
+
+    if(mmsg == nil) then
+        mmsg = remove_char_repeats_fast(ori)
+        -- only keep modify string which can be rewrite to more than half of the length
+        if(mmsg ~= nil) then
+            if(string.len(mmsg) > len/2) then
+                mmsg = nil
+            end
+        end
+    end
+
+    return mmsg
+end
+
 local acamarFilter = function(self, event, message, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...)
+
+    msgdata = {
+        --self = self,
+        event = event,
+        message = message,
+        from = from,
+        lang = lang,
+        chan_id_name = chan_id_name,
+        player_name_only = player_name_only,
+        flag = flag,
+        chan_id = chan_id, -- start from 0
+        chan_num = chan_num, -- start from 1
+        chan_name = chan_name, -- channel name only
+        u = u,
+        line_id = line_id,
+        guid = guid,
+        receive_time = time(),
+    }    
+
+    -- let some events pass
+    if event == "CHAT_MSG_SYSTEM" then  
+        if message == ERR_IGNORE_NOT_FOUND then
+            return false
+        end
+        if message == ERR_IGNORE_ALREADY_S then
+            return false
+        end
+        if message == ERR_IGNORE_FULL then
+            return false
+        end
+    end
+    
+    -- If module not fully loaded, skip filter
+    if Acamar_Loaded ~= true then
+        return false
+    end
+    
+    -- let npc messages pass    
+    if event == "CHAT_MSG_MONSTER_EMOTE" or event == "CHAT_MSG_MONSTER_PARTY" or event == "CHAT_MSG_MONSTER_SAY" or
+       event == "CHAT_MSG_MONSTER_WHISPER" or event == "CHAT_MSG_MONSTER_YELL" then
+            return false;
+    -- let system messages pass
+    elseif event == "CHAT_MSG_SYSTEM" then
+        return false
+    -- let notice and invite events pass
+    elseif event == "CHAT_MSG_CHANNEL_NOTICE_USER" and message == "INVITE" then
+        return false
+    elseif (from ~= nil) and (from ~= "") then
+        if line_id == prevLineID then
+            -- skip
+            if modifyMsg and addon.db.global.message_rewrite then
+                --addon:log("rewrite 1")
+                --modify = RewriteMessage(message)
+                return false, modifyMsg, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
+            elseif block then
+                return true
+            else
+                --return false, modifyMsg, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
+                return false
+            end
+        else
+            -- addon:log(table_to_string({line_id=line_id, prevLineID=prevLineID, player=player}))
+
+            prevLineID, modifyMsg, block = line_id, nil, nil
+
+            block, score = addon.FilterProcessor:OnNewMessage(msgdata)
+            -- block the message
+            if block then
+                return true
+            end
+
+            -- Rewrite message if set
+            if(addon.db.global.message_rewrite ) then
+                -- get rewritten message
+                remsg = RewriteMessage(message)
+                --remsg = "hello"
+                if(remsg ~= nil) then
+                --if(string.find(message, "G")) then
+                    modifyMsg = REWRITE_PREFIX .. remsg
+                    -- rewrite message
+                    addon:log("rewrite from : " .. from .. ": " .. message)
+                    addon:log("rewrite to: " .. modifyMsg)
+                    return false, modifyMsg, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
+                end
+            end 
+
+        end
+    end
+
+    return false
+end
+
+--[[
+local acamarFilter_v1 = function(self, event, message, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...)
+
     msgdata = {
         --self = self,
         event = event,
@@ -87,7 +215,10 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
         return false
     elseif (from ~= nil) and (from ~= "") then
         if line_id == prevLineID then
-            if modifyMsg then
+            -- skip
+            if false and addon.db.global.message_rewrite then
+                addon:log("rewrite 1")
+                modify = RewriteMessage(message)
                 return false, modify, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
             elseif block then
                 return true
@@ -109,6 +240,17 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
                     return true
                 end
 
+                if(false and addon.db.global.message_rewrite == true) then
+                    modify = RewriteMessage(message)
+                    --if(modify ~= nil) then
+                    if(string.find(message, "G")) then
+                        -- rewrite message
+                        addon:log("rewrite 2 from : ".. message)
+                        addon:log("rewrite 2 to: ".. modify)
+                        return false, modify, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
+                    end
+                end
+
                 return 
             end 
 
@@ -124,9 +266,18 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
                 return true
             end
 
-            if(addon.db.profile.modify_msg == true) then
+            if(addon.db.global.message_rewrite == true) then
                 -- do modify message
-                return false, modify, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
+                modify = RewriteMessage(message)
+                if(modify == nil) then
+                    -- return without modify
+                    return false
+                else
+                    -- rewrite message
+                    addon:log("rewrite 3 from: " .. modify)
+                    addon:log("rewrite 3 to: " .. modify)
+                    return false, modify, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
+                end
             end
 
         end
@@ -134,6 +285,86 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
     
     return false
 end
+
+--main filtering function
+
+local acamarFilter_v2 = function(self, event, message, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...)
+
+    msgdata = {
+        --self = self,
+        event = event,
+        message = message,
+        from = from,
+        lang = lang,
+        chan_id_name = chan_id_name,
+        player_name_only = player_name_only,
+        flag = flag,
+        chan_id = chan_id, -- start from 0
+        chan_num = chan_num, -- start from 1
+        chan_name = chan_name, -- channel name only
+        u = u,
+        line_id = line_id,
+        guid = guid,
+        receive_time = time(),
+    }    
+
+    -- If module not fully loaded, skip filter
+    if Acamar_Loaded ~= true then
+        return false
+    end
+
+     -- let npc messages pass    
+    if event == "CHAT_MSG_MONSTER_EMOTE" or event == "CHAT_MSG_MONSTER_PARTY" or event == "CHAT_MSG_MONSTER_SAY" or
+       event == "CHAT_MSG_MONSTER_WHISPER" or event == "CHAT_MSG_MONSTER_YELL" then
+            return false;
+    -- let system messages pass
+    elseif event == "CHAT_MSG_SYSTEM" then
+        return false
+    -- let notice and invite events pass
+    elseif event == "CHAT_MSG_CHANNEL_NOTICE_USER" and message == "INVITE" then
+        return false
+    elseif lineId == prevLineID then
+        if modifyMsg then
+            return false, modifyMsg, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
+        elseif block then
+            return true
+        else
+            return
+        end
+    else
+        prevLineID, modifyMsg, block = line_id, nil, nil
+
+        -- customized channels like bigboot
+        if event == "CHAT_MSG_CHANNEL" and (chan_id == 0 or type(chan_id) ~= "number") then 
+            return 
+        end 
+
+        if UnitIsInMyGuild(from) then 
+            return 
+        end --Don't filter ourself/friends/guild
+
+        block, score = addon.FilterProcessor:OnNewMessage(msgdata)
+        -- block the message
+        if block then
+            return true
+        end
+
+        if(addon.db.global.message_rewrite == true) then
+            remsg = RewriteMessage(message)
+            if(remsg ~= nil) then
+            --if(string.find(message, "G")) then
+                modifyMsg = msg
+                -- rewrite message
+                addon:log("rewrite 2 from : ".. message)
+                addon:log("rewrite 2 to: ".. modifyMsg)
+                return false, modifyMsg, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
+            end
+        end        
+
+    end
+end
+]]
+
 
 function AcamarMessage:OnInitialize()
     --addon:Printf("AcamarMessage:OnInitialize()")

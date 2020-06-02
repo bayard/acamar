@@ -43,6 +43,8 @@ Options.defaults = {
 		message_hook_switch = true,
 		-- filter channels settings
 		filter_channel_set = addon.MSG_FILTER_CHANNEL_SET_NORMAL,
+		-- message rewrite
+		message_rewrite = true,
 		-- analysis run params
 		analysis = {
 			interval = 300,
@@ -438,6 +440,21 @@ function Options.GetOptions(uiType, uiName, appName)
 		      						return addon.db.global.do_not_disturb 
 		      					end,
 							order = 2.1,
+						},
+
+						message_rewrite = {
+							type = "toggle",
+							width = "full",
+							name = L["Rewrite messages"],
+							desc = L["REWRITE_DESC"] ,
+							width = "normal",
+							set = function(info,val) 
+									addon.db.global.message_rewrite = val 
+								end,
+		      				get = function(info) 
+		      						return addon.db.global.message_rewrite 
+		      					end,
+							order = 2.2,
 						},
 
 						header06 = {

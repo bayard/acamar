@@ -49,6 +49,10 @@ L["FILTER_CHANNEL_NOTE"] = "为了不遗漏重要消息，公会官员以及团�
 L["Message filtering running ..."] = "开始进行消息过滤..."
 L["Message filtering stopped."] = "消息过滤停止。"
 
+L["Rewrite messages"] = "精简消息"
+L["[RW] "] = "[简] "
+L["REWRITE_DESC"] = "将重复和啰嗦的消息精简，这类消息前面会添加|cff00cccc[简]|r的标志。消息量大的时候cpu负载会略高。"
+
 -- logs
 L["Acamar control window opened."] = "Acamar控制窗口已打开。"
 L["At current level, block spam score set to: "] = "当前过滤级别对应的垃圾得分为："

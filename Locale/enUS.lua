@@ -51,6 +51,10 @@ L["FILTER_CHANNEL_NOTE"] = "Guid officer and RAID leader channels would not be f
 L["Message filtering running ..."] = true
 L["Message filtering stopped."] = true
 
+L["Rewrite messages"] = true
+L["[RW] "] = true
+L["REWRITE_DESC"] = "Rewrite messages with repeat patterns, could affect performance in heavy message traffic. Rewritten messages displayed with a mark: [RW]"
+
 -- logs
 L["Acamar control window opened."] = true
 L["At current level, block spam score set to: "] = true
