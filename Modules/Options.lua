@@ -45,11 +45,11 @@ Options.defaults = {
 		filter_channel_set = addon.MSG_FILTER_CHANNEL_SET_NORMAL,
 		-- analysis run params
 		analysis = {
-			interval = 600,
+			interval = 300,
 		},
-		-- compact db
+		-- compact db, not use anymore
 		compactdb = {
-			interval = 900,
+			interval = 500,
 		},
 		-- current set threshold of spam filtering
 		-- 0: off, 1: miniman
@@ -75,6 +75,8 @@ Options.defaults = {
 		plist = {},
 		-- pre-learning list
 		prelearning = {},
+		-- player features
+		pfeatures = {},
 		-- font size
 		fontsize = 12.8,
 		-- output log messages when begin learning on player and found new player with spam score

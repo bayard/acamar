@@ -58,7 +58,7 @@ else
 						learning = true,
 					},
 				},
-				-- plays addon is learning
+				-- players addon is under learning
 				plist = 
 				{
 					["player-1111-2222"] =
@@ -555,13 +555,13 @@ end
 function FilterProcessor:loaddb()
 	
 	-- players in learning
-	addon.db.global.plist = addon.db.global.plist or {}
+	-- addon.db.global.plist = addon.db.global.plist or {}
 
 	-- prelearning data 
-	addon.db.global.prelearning = addon.db.global.prelearning or {}
+	-- addon.db.global.prelearning = addon.db.global.prelearning or {}
 
 	-- features table, calculated features db from plist
-	addon.db.global.pfeatures = addon.db.global.pfeatures or {}
+	-- addon.db.global.pfeatures = addon.db.global.pfeatures or {}
 
 	self:UpdateFilterScore(addon.db.global.filtering_level)
 end
@@ -614,9 +614,10 @@ function FilterProcessor:OnNewMessage(...)
 	self:Analysis()
 
 	-- setup a compact db timer
-	self:CompactDB()
+	-- not using timer, compact db after analysis
+	-- self:CompactDB()
 
-	-- only filter message when switch set to on
+	-- only filter messages when switch set to on
 	if addon.db.global.message_filter_switch then 
 		local pfeature = addon.db.global.pfeatures[msgdata.guid]
 		if addon.db.global.pfeatures[msgdata.guid] ~= nil then
@@ -1112,7 +1113,7 @@ function timer_analysis_func()
 		end
 	end
 
-	-- addon:log(L["Performing analysis on user behavior ..."])
+	addon:log(L["Performing analysis on user behavior ..."])
 
 	-- debug
 	--[[
@@ -1122,6 +1123,8 @@ function timer_analysis_func()
 	local bdata = addon.db.global.analysis
 	addon:log("bdata:" .. table_to_string(bdata))
 	]]
+
+	local new_spammer_counter = 0
 
 	for kp, vp in pairs(addon.db.global.plist) do
 		local pfeature = {
@@ -1324,6 +1327,7 @@ function timer_analysis_func()
 
 			-- if new, to update
 			if last_feature == nil then
+				new_spammer_counter = new_spammer_counter + 1
 				if not addon.db.global.do_not_disturb then
 					addon:log(L["Found new possible spammer: "] .. pfeature.name)
 				end
@@ -1377,7 +1381,14 @@ function timer_analysis_func()
 	-- notify after debug info written
 	--PlaySound(SOUNDKIT.READY_CHECK)
 	--PlaySound(123)
-	PlaySound(1519)
+
+	-- play discover sound if there are new spammers
+	if new_spammer_counter > 0 then
+		PlaySound(1519)
+	end
+
+	-- compact db after analysis
+	timer_compactdb_func()
 end
 
 -- set a timer to launch analysis process
@@ -1401,7 +1412,7 @@ function timer_compactdb_func()
 		end
 	end
 
-	-- addon:log(L["Performing optimization on learning DB ..."])
+	addon:log(L["Performing optimization on learning DB ..."])
 
 	local aweek_ago = time() - 604800
 	local ahour_ago = time() - 3600
