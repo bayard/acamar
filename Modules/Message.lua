@@ -1,11 +1,64 @@
 local addonName, addon = ...
-local AcamarMessage = addon:NewModule("AcamarMessage", "AceEvent-3.0", "AceHook-3.0", "AceConsole-3.0")
-local L = LibStub("AceLocale-3.0"):GetLocale(addonName)
-local AceGUI = LibStub("AceGUI-3.0")
-local private = {}
+local AcamarMessage, L, AceGUI, private
 ------------------------------------------------------------------------------
+local GetNumFriends, GetFriendInfo
+local chatEvents
 
-local serverName = GetRealmName()
+if(addonName ~= nil) then
+    AcamarMessage = addon:NewModule("AcamarMessage", "AceEvent-3.0", "AceHook-3.0", "AceConsole-3.0")
+    L = LibStub("AceLocale-3.0"):GetLocale(addonName)
+    AceGUI = LibStub("AceGUI-3.0")
+    private = {}
+
+    GetNumFriends = C_FriendList.GetNumFriends
+    GetFriendInfo = C_FriendList.GetFriendInfo
+
+    chatEvents = 
+    {
+        [addon.MSG_FILTER_CHANNEL_SET_NORMAL] = {
+            "CHAT_MSG_CHANNEL",
+            "CHAT_MSG_SAY",
+            "CHAT_MSG_YELL",
+            "CHAT_MSG_EMOTE",
+            "CHAT_MSG_WHISPER",
+        },
+        [addon.MSG_FILTER_CHANNEL_SET_PLUS_PARTY_RAID] = {
+            "CHAT_MSG_CHANNEL",
+            "CHAT_MSG_SAY",
+            "CHAT_MSG_YELL",
+            "CHAT_MSG_EMOTE",
+            "CHAT_MSG_WHISPER",
+            "CHAT_MSG_PARTY",
+            "CHAT_MSG_RAID",
+        },
+        [addon.MSG_FILTER_CHANNEL_SET_PLUS_GUILD] = {
+            "CHAT_MSG_CHANNEL",
+            "CHAT_MSG_SAY",
+            "CHAT_MSG_YELL",
+            "CHAT_MSG_EMOTE",
+            "CHAT_MSG_WHISPER",
+            "CHAT_MSG_GUILD",
+        },
+        [addon.MSG_FILTER_CHANNEL_SET_PLUS_BOTH] = {
+            "CHAT_MSG_CHANNEL",
+            "CHAT_MSG_SAY",
+            "CHAT_MSG_YELL",
+            "CHAT_MSG_EMOTE",
+            "CHAT_MSG_WHISPER",
+            "CHAT_MSG_GUILD",
+            "CHAT_MSG_PARTY",
+            "CHAT_MSG_RAID",
+        },
+    }
+else
+    addon = {}
+    L = {}
+    AcamarMessage = {}
+end
+
+--local BNGetNumFriendToons = C_BattleNet.GetFriendNumGameAccounts
+
+--local serverName = GetRealmName()
 
 -- debug purpose, should change upon module load status
 Acamar_Loaded = true
@@ -46,12 +99,20 @@ local function RewriteMessage(ori)
         return ori
     end
 
+    haslink = find_link(ori)
+    -- skip message with item link
+    if(haslink) then
+        return
+    end    
+
     local mmsg = nil
 
     if((len>=4) and (len%2==0)) then
         mmsg = find_repeat_pattern_fast(ori)
     end
 
+    -- second stage rewrite currently disabled because of in-consistency
+    --[[
     if(mmsg == nil) then
         mmsg = remove_char_repeats_fast(ori)
         -- only keep modify string which can be rewrite to more than half of the length
@@ -61,8 +122,53 @@ local function RewriteMessage(ori)
             end
         end
     end
+    ]]
 
     return mmsg
+end
+
+--- Remove server names from names given as "Character-Servername"
+-- @param name The name to remove the dash server part from
+local function RemoveServerDash(name)
+    local dash = name:find("-");
+    if dash then 
+        return name:sub(1, dash-1); 
+    end
+    return name;
+end
+
+local function IsFriend(name)
+    if not name then
+        return
+    end
+
+    -- myself
+    if name == UnitName("player") then
+        return true
+    end
+
+    -- guild/party/raid member
+    if UnitIsInMyGuild(name) or UnitInRaid(name) or UnitInParty(name) then
+        return true
+    end
+
+    -- friends
+    for i = 1, GetNumFriends() do
+        if GetFriendInfo(i) == name then
+            return true
+        end
+    end
+    --[[
+    local _, numBNFriends = BNGetNumFriends()
+    for i = 1, numBNFriends do
+        for j = 1, BNGetNumFriendToons(i) do
+            local _, toonName = BNGetFriendToonInfo(i, j)
+            if toonName == name then
+                return true
+            end
+        end
+    end
+    ]]
 end
 
 local acamarFilter = function(self, event, message, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...)
@@ -110,10 +216,26 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
     -- let system messages pass
     elseif event == "CHAT_MSG_SYSTEM" then
         return false
+    -- bypass GM/dev
+    elseif flag == "GM" or flag == "DEV" then
+        return false
     -- let notice and invite events pass
     elseif event == "CHAT_MSG_CHANNEL_NOTICE_USER" and message == "INVITE" then
         return false
     elseif (from ~= nil) and (from ~= "") then
+        local shortname = RemoveServerDash(from)
+
+        -- bypass friends
+        if addon.db.global.bypass_friends and IsFriend(shortname) then
+            --addon:log("bypass friend message: [" .. shortname .. "] " .. message)
+            return
+        end
+
+        -- bypass whitelist
+        if addon.db.global.wl[shortname] ~= nil then
+            return
+        end
+
         if line_id == prevLineID then
             -- skip
             if modifyMsg and addon.db.global.message_rewrite then
@@ -137,8 +259,9 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
                 return true
             end
 
-            -- Rewrite message if set
-            if(addon.db.global.message_rewrite ) then
+            -- Rewrite message if set. Only apply to channel, say, yell
+            if( (event == "CHAT_MSG_CHANNEL" or event == "CHAT_MSG_SAY" or event == "CHAT_MSG_YELL" ) 
+                and addon.db.global.message_rewrite ) then
                 -- get rewritten message
                 remsg = RewriteMessage(message)
                 --remsg = "hello"
@@ -146,8 +269,8 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
                 --if(string.find(message, "G")) then
                     modifyMsg = REWRITE_PREFIX .. remsg
                     -- rewrite message
-                    addon:log("rewrite from : " .. from .. ": " .. message)
-                    addon:log("rewrite to: " .. modifyMsg)
+                    --addon:log("rewrite from : " .. from .. ": " .. message)
+                    --addon:log("rewrite to: " .. modifyMsg)
                     return false, modifyMsg, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
                 end
             end 
@@ -399,46 +522,6 @@ end
         "CHAT_MSG_WHISPER",
         "CHAT_MSG_YELL",
 ]]
-
--- only listen to events with spams
--- don't filter messages in RAID, GUILD, and others
-local chatEvents = 
-{
-    [addon.MSG_FILTER_CHANNEL_SET_NORMAL] = {
-        "CHAT_MSG_CHANNEL",
-        "CHAT_MSG_SAY",
-        "CHAT_MSG_YELL",
-        "CHAT_MSG_EMOTE",
-        "CHAT_MSG_WHISPER",
-    },
-    [addon.MSG_FILTER_CHANNEL_SET_PLUS_PARTY_RAID] = {
-        "CHAT_MSG_CHANNEL",
-        "CHAT_MSG_SAY",
-        "CHAT_MSG_YELL",
-        "CHAT_MSG_EMOTE",
-        "CHAT_MSG_WHISPER",
-        "CHAT_MSG_PARTY",
-        "CHAT_MSG_RAID",
-    },
-    [addon.MSG_FILTER_CHANNEL_SET_PLUS_GUILD] = {
-        "CHAT_MSG_CHANNEL",
-        "CHAT_MSG_SAY",
-        "CHAT_MSG_YELL",
-        "CHAT_MSG_EMOTE",
-        "CHAT_MSG_WHISPER",
-        "CHAT_MSG_GUILD",
-    },
-    [addon.MSG_FILTER_CHANNEL_SET_PLUS_BOTH] = {
-        "CHAT_MSG_CHANNEL",
-        "CHAT_MSG_SAY",
-        "CHAT_MSG_YELL",
-        "CHAT_MSG_EMOTE",
-        "CHAT_MSG_WHISPER",
-        "CHAT_MSG_GUILD",
-        "CHAT_MSG_PARTY",
-        "CHAT_MSG_RAID",
-    },
-}
 
 function AcamarMessage:HookOn( channels )
     addon:log(L["Message filtering running ..."])

@@ -55,6 +55,13 @@ L["Rewrite messages"] = true
 L["[RW] "] = true
 L["REWRITE_DESC"] = "Rewrite messages with repeat patterns, could affect performance in heavy message traffic. Rewritten messages displayed with a mark: [RW]"
 
+L["Bypass friends"] = true
+L["Do not filter members of guild, party/raid, and myself."] = true
+
+L["White list"] = true
+L["Enter player's name list to bypass filtering:"] = true
+L["One player in one single line"] = true
+
 -- logs
 L["Acamar control window opened."] = true
 L["At current level, block spam score set to: "] = true
@@ -69,7 +76,7 @@ L["Turn on learning engine..."] = true
 L["Turn off learning engine..."] = true
 
 -- app info
-L["ADDON_INFO"] = '|cffca99ffAcamar|r auto-learning spam blocker addon for WoW.'
+L["ADDON_INFO"] = '|cffca99ffAcamar|r auto-learning spam blocker.'
 
 L["AUTHOR_INFO"] = '|cffca99ffAcamar|r learns user chatting behavior and identify bots and spammers out from normal users, and as more information is learned, the filtering will become more accurate.\n\n' .. 
 "You are use /acamar command or click minimap icon to open tiny control window to pause/resume filtering." ..

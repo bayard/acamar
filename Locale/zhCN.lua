@@ -32,7 +32,7 @@ L["Turn On Engine"] = "启用Acamar引擎"
 L["Turn on messages filtering and learning engine. If turn off, messages will not be filtered."] = "如果关闭，消息过滤及学习都将被停止。"
 L["Engine Settings"] = "基本设置"
 L["Advanced Settings"] = "高级设置"
-L["Spam score"] = "评分列表"
+L["Spam score"] = "自动评分"
 L["About"] = "关于"
 L["ABOUT_INFO"] = "|cffca99ffAcamar|r 距离太阳49pc，|cffca99ffTriton|r才0.00014567pc。"
 L["Do not disturb"] = "尽量勿扰模式"
@@ -53,6 +53,13 @@ L["Rewrite messages"] = "精简消息"
 L["[RW] "] = "[简] "
 L["REWRITE_DESC"] = "将重复和啰嗦的消息精简，这类消息前面会添加|cff00cccc[简]|r的标志。消息量大的时候cpu负载会略高。"
 
+L["Bypass friends"] = "不过滤好友"
+L["Do not filter members of guild, party/raid, and myself."] = "不要过滤公会、小组、团队的成员，当然包括我自己。"
+
+L["White list"] = "白名单"
+L["Enter player's name list to bypass filtering:"] = "输入白名单，名单里的玩家将不被屏蔽"
+L["One player in one single line"] = "注意格式：一行一个用户"
+
 -- logs
 L["Acamar control window opened."] = "Acamar控制窗口已打开。"
 L["At current level, block spam score set to: "] = "当前过滤级别对应的垃圾得分为："
@@ -67,7 +74,7 @@ L["Turn on learning engine..."] = "打开学习引擎..."
 L["Turn off learning engine..."] = "关闭学习引擎..."
 
 -- app info
-L["ADDON_INFO"] = '|cffca99ffAcamar|r 自学习垃圾消息屏蔽插件。支持WoW怀旧版。'
+L["ADDON_INFO"] = '|cffca99ffAcamar|r 自学习垃圾消息屏蔽插件。'
 
 L["AUTHOR_INFO"] = '|cffca99ffAcamar|r 学习用户的聊天行为，从中辨识出正常玩家、垃圾发送者以及脚本。只需选择过滤的级别，随着学习的信息越来越多，过滤就会变得越来越准确。\n\n' .. 
 "可以使用|cffca99ff /acamar |r命令或者小地图图标打开小控制窗口来暂停和启用过滤。" ..

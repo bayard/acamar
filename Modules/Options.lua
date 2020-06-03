@@ -1,9 +1,16 @@
 local addonName, addon = ...
-local Options = addon:NewModule("Options", "AceConsole-3.0")
-local L = LibStub("AceLocale-3.0"):GetLocale(addonName)
-local LSM = LibStub("LibSharedMedia-3.0")
-local WidgetLists = AceGUIWidgetLSMlists
---------------------------------------------------------------------------------------------------------
+local Options, L, LSM, WidgetLists
+------------------------------------------------------------------------------
+if(addonName ~= nil) then
+	Options = addon:NewModule("Options", "AceConsole-3.0")
+	L = LibStub("AceLocale-3.0"):GetLocale(addonName)
+	LSM = LibStub("LibSharedMedia-3.0")
+	WidgetLists = AceGUIWidgetLSMlists
+else
+	addon = {}
+	Options = {}
+	L = {}
+end
 
 addon.MSG_FILTER_CHANNEL_SET_NORMAL = "1:NORMAL"
 addon.MSG_FILTER_CHANNEL_SET_PLUS_PARTY_RAID = "2:PLUS_TEAM"
@@ -45,6 +52,8 @@ Options.defaults = {
 		filter_channel_set = addon.MSG_FILTER_CHANNEL_SET_NORMAL,
 		-- message rewrite
 		message_rewrite = true,
+		-- bypass friends
+		bypass_friends = true,
 		-- analysis run params
 		analysis = {
 			interval = 300,
@@ -73,6 +82,8 @@ Options.defaults = {
 		penalty_threshold = 20,
 		-- messages received time diff lower than this consider as periodcally (mostly spams)
 		deviation_threshold = 0.25,
+		-- whitelist
+		wl = {},
 		-- learning list
 		plist = {},
 		-- pre-learning list
@@ -330,6 +341,67 @@ function ResetAcamarDB(info)
 	addon.resetting_flag = false
 end
 
+function SplitString(s, sep)
+    local fields = {}
+
+    local sep = sep or " "
+    local pattern = string.format("([^%s]+)", sep)
+    --string.gsub(s, pattern, function(c) fields[#fields + 1] = c end)
+    string.gsub(s, pattern, function(c) 
+    		if(c~=nil and c~= "") then
+    			fields[c] = true 
+    		end
+    	end)
+
+    return fields
+end
+
+-- convert table to "\n" seperated string
+function addon:LoadWL(a)
+	local wlstr = ""
+
+	local klist = {}
+	for key, val in pairs(addon.db.global.wl) do
+		if key then
+			table.insert(klist, key)
+		end
+	end
+
+	table.sort(klist)
+
+	for key, val in pairs(klist) do
+		if val then
+			if wlstr ~= "" then
+				wlstr = wlstr .. "\n"
+			end
+			wlstr = wlstr .. val
+		end
+	end
+
+	return wlstr
+end
+
+-- convert string list to indexed table
+function addon:SaveWL(str)
+	--addon:log("SaveWL" .. str)
+	local t = SplitString(str, "\n")
+	addon.db.global.wl = t
+end
+
+-- debug
+if(addonName == nil) then
+
+	local function test()
+		a = SplitString("测试\n字符串\nabc\nhello\no世界")
+		for k,v in pairs(a) do
+			print(k)
+		end
+	end
+
+	test()
+end
+
+-----------------------------------------------------
 function Options.GetOptions(uiType, uiName, appName)
 	if appName == addonName then
 		--top500list = GetBannedList(500)
@@ -421,7 +493,7 @@ function Options.GetOptions(uiType, uiName, appName)
 							order = 1.7,
 						},
 
-						header03 = {
+						header_dnd = {
 							type = "header",
 							name = "",
 							order = 2.01,
@@ -429,7 +501,7 @@ function Options.GetOptions(uiType, uiName, appName)
 
 						do_not_disturb = {
 							type = "toggle",
-							width = "full",
+							width = "normal",
 							name = L["Do not disturb"],
 							desc = L["Enable to bypass printing of progress messages (like talkative player added into learning) in chat window."],
 							width = "normal",
@@ -444,7 +516,7 @@ function Options.GetOptions(uiType, uiName, appName)
 
 						message_rewrite = {
 							type = "toggle",
-							width = "full",
+							width = "normal",
 							name = L["Rewrite messages"],
 							desc = L["REWRITE_DESC"] ,
 							width = "normal",
@@ -455,6 +527,21 @@ function Options.GetOptions(uiType, uiName, appName)
 		      						return addon.db.global.message_rewrite 
 		      					end,
 							order = 2.2,
+						},
+
+						bypass_friends = {
+							type = "toggle",
+							width = "normal",
+							name = L["Bypass friends"],
+							desc = L["Do not filter members of guild, party/raid, and myself."],
+							width = "normal",
+							set = function(info,val) 
+									addon.db.global.bypass_friends = val 
+								end,
+		      				get = function(info) 
+		      						return addon.db.global.bypass_friends 
+		      					end,
+							order = 2.3,
 						},
 
 						header06 = {
@@ -522,7 +609,7 @@ function Options.GetOptions(uiType, uiName, appName)
 							type = "description",
 							name = "|cff00cccc" .. L["Top players with spam score. Max "] .. "500" .. "\n" ..
 								L["The list changes along with the learning progress."] .. "|r",
-							order = 8.02,
+							order = 7.01,
 						},
 						top500_list_select = {
 							type = "multiselect",
@@ -531,11 +618,38 @@ function Options.GetOptions(uiType, uiName, appName)
 							name = "",
 							descStyle = L["The list changes along with the learning progress."],
 							values = function(info) return GetBannedTable(500) end,
-							order = 8.1,
+							order = 7.1,
 						},								
 					},
 				},
 
+				whitelist_panel = {
+					type = "group",
+					childGroups = "tab",
+					name = L["White list"],
+					order = 8.0,
+					args = {
+						whitelist_desc = {
+							type = "description",
+							name = L["Enter player's name list to bypass filtering:"],
+							order = 8.01,
+						},
+						whitelist_select = {
+							type = "input",
+							width = "full",
+							multiline = 16,
+							name = L["One player in one single line"],
+							usage = L["One player in one single line"],
+							set = function(info,val) 
+									addon:SaveWL(val)
+								end,
+		      				get = function(info) 
+		      						return addon:LoadWL()
+		      					end,
+							order = 8.1,
+						},								
+					},
+				},
 				about_panel = {
 					type = "group",
 					childGroups = "tab",

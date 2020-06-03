@@ -532,7 +532,7 @@ local function all_non_meaningful(utfstr)
 end
 
 -- if message contains rt# icon
-local function find_icon(str)
+function find_icon(str)
 	local pos = string.find(str, "{rt%d}")
 	if pos ~= nil then
 		return true
@@ -540,7 +540,7 @@ local function find_icon(str)
 	return false
 end
 
-local function find_link(str)
+function find_link(str)
 	local pos = string.find(str, "|Hitem:%d+:.-|h.-|h")
 	if pos ~= nil then
 		return true
@@ -1544,6 +1544,16 @@ function tbl_subrange(t, first, last)
 	return sub
 end
 
+local function tohex(num)
+    local charset = {"0","1","2","3","4","5","6","7","8","9","a","b","c","d","e","f"}
+    local tmp = {}
+    repeat
+        table.insert(tmp,1,charset[num%16+1])
+        num = math.floor(num/16)
+    until num==0
+    return table.concat(tmp)
+end
+
 function comparetables(t1, t2)
  	if #t1 ~= #t2 then return false end
  	for i=1,#t1 do
@@ -1563,6 +1573,79 @@ function remove_char_repeats_fast(str)
 			rk[ t[i] ] = true
 			table.insert(rt, t[i])
 		end
+	end
+
+	return unicode_tbl_to_utf8(rt)
+end
+
+-- remove all repeat chars
+function longest_substring_fast(str) 
+	local t = utf8_to_tbl(str)
+	local rt = {}
+	local r1 = {}
+
+	for i=1, #t do
+		r1[i] = t[i]
+		for j=1, i do
+			r1[j] = t[j]
+		end
+		print(unicode_tbl_to_utf8(r1))
+	end
+
+	return unicode_tbl_to_utf8(rt)
+end
+
+-- remove all repeat chars
+function remove_char_repeats_preserve_numbers_fast(str) 
+	local t = utf8_to_tbl(str)
+	return remove_char_repeats_preserve_numbers_table(t)
+end
+
+function remove_char_repeats_preserve_numbers_table(t) 
+	local rt = {}
+	local rk = {}
+	local len = #t
+	local waitseq = {}
+
+	for i=1, #t, 1 do
+
+		-- new found unicode char
+		if (not rk[ t[i] ]) then
+			--print(unicode_tbl_to_utf8(rt) .. "| |" .. unicode_tbl_to_utf8(waitseq))
+			-- if waiting sequence not empty, insert elements of waitseq into result and wipe waitseq
+			if(#waitseq>0) then
+				--packseq = remove_char_repeats_preserve_numbers_table(waitseq)
+				packseq = waitseq
+				for j=1, #packseq, 1 do
+					table.insert(rt, packseq[j])
+				end
+				waitseq = {}
+			end
+
+			rk[ t[i] ] = true
+			table.insert(rt, t[i])
+			--print(unicode_tbl_to_utf8(rt) .. "| |" .. unicode_tbl_to_utf8(waitseq) .. "\n")
+		-- if char exists
+		else
+			--[[
+			-- unicode number range 0x30-0x39
+			if (t[i]>=0x30 and t[i]<=0x39) then
+				-- if adjacent with numbers
+				--if ( i>1 and t[i-1]>=0x30 and t[i-1]<=0x39 ) or (i<len and t[i+1]>=0x30 and t[i+1]<=0x39) then
+				--	table.insert(waitseq, t[i])
+				--end
+
+				-- insert into waiting seq
+				table.insert(waitseq, t[i])
+			end
+			]]
+
+			if (t[i]>=0x30 and t[i]<=0x39) or (t[i]>=0x41 and t[i]<=0x5a) then
+			-- save existing chars into waiting sequence
+				table.insert(waitseq, t[i])
+			end
+		end
+
 	end
 
 	return unicode_tbl_to_utf8(rt)
@@ -1616,6 +1699,8 @@ end
 ---------------------------
 -- test functions
 if addonName == nil then
+
+
 	local function serialize_local(obj)
 	    local lua = ""  
 	    local t = type(obj)  
@@ -1807,9 +1892,17 @@ if addonName == nil then
 	end
 
    	function test11()
-   		a5="JJC兽人老高已出 来需求的老板JJC兽人老高已出 来需求的老板JJC兽人老高已出 来需求的老板JJC兽人老高已出 来需求的老板"
-		s = remsg(a5)
-		print(s)
+   		a5 = "JJC兽人老高已出 来需求的老板JJC兽人老高已出 来需求的老板JJC兽人老高已出 来需求的老板JJC兽人老高已出 来需求的老板"
+   		a6 = "MLD10分钟一门　160+怪　接30－52　MLD10分钟一门　160+怪　接30－52　MLD10分钟一门　160+怪　接30－52　MLD10分钟一门　160+怪　接30－52　MLD10分钟一门　160+怪　接30－52　MLD10分钟一门　160+怪　接30－52 A"
+   		a7 = "#[正义之手]#11815##[正义之手]#11815##[正义之手]#11815#来 老板 。。。。"
+
+		--s1 = remove_char_repeats_preserve_numbers_fast(a6)
+		--s2 = remove_char_repeats_fast(a6)
+		--s3 = find_repeat_pattern_fast(a6)
+
+		s1 = longest_substring_fast(a5)
+
+		print(s1)
    	end
 
 	test11()
