@@ -1113,7 +1113,9 @@ function timer_analysis_func()
 		end
 	end
 
-	addon:log(L["Performing analysis on user behavior ..."])
+	if (not addon.db.global.do_not_disturb) then
+		addon:log(L["Performing analysis on user behavior ..."])
+	end
 
 	-- debug
 	--[[
@@ -1412,7 +1414,9 @@ function timer_compactdb_func()
 		end
 	end
 
-	addon:log(L["Performing optimization on learning DB ..."])
+	if (not addon.db.global.do_not_disturb) then
+		addon:log(L["Performing optimization on learning DB ..."])
+	end
 
 	local aweek_ago = time() - 604800
 	local ahour_ago = time() - 3600
