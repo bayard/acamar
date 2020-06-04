@@ -2,7 +2,7 @@
 ## Title: Acamar
 ## Title-zhCN: Acamar
 ## Author: Acamar@匕首岭
-## Version: 1.1
+## Version: 1.11
 ## Notes: |cff00aaaa Acamar spam terminator.|r
 ## Notes-zhCN: |cff00aaaa Acamar 垃圾信息终结者。|r
 ## SavedVariables: AcamarDB

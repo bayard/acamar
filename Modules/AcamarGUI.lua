@@ -24,6 +24,7 @@ function AcamarGUI:Load_Ace_Custom()
   	-- When close button clicked
 	frame:SetCallback("OnClose",
 		function(widget) 
+			addon.db.global.ui_switch_on = false
 			AceGUI:Release(widget) 
 		end)
   

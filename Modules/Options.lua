@@ -44,6 +44,8 @@ addon.spammercolor = {
 --  Options
 Options.defaults = {
 	global = {
+		-- UI window
+		ui_switch_on = false,
 		-- message filtering on or off
 		message_filter_switch = true,
 		-- hook engine on/off
@@ -124,7 +126,7 @@ function Options:Load()
 
 	addon.db.global.creator_addon_version = addon.db.global.creator_addon_version or addon.METADATA.VERSION
 
-	addon.db.global.ui_switch_on = addon.db.global.ui_switch_on or true
+	--addon.db.global.ui_switch_on = addon.db.global.ui_switch_on or true
 end
 
 function Options:SaveSession()
