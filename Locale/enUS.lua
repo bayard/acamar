@@ -62,6 +62,8 @@ L["White list"] = true
 L["Enter player's name list to bypass filtering:"] = true
 L["One player in one single line"] = true
 
+L["Show minimap icon"] = true
+
 -- logs
 L["Acamar control window opened."] = true
 L["At current level, block spam score set to: "] = true

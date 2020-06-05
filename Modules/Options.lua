@@ -56,6 +56,8 @@ Options.defaults = {
 		message_rewrite = true,
 		-- bypass friends
 		bypass_friends = true,
+		-- minimap icon switch
+		minimap_icon_switch = true,
 		-- analysis run params
 		analysis = {
 			interval = 300,
@@ -544,6 +546,25 @@ function Options.GetOptions(uiType, uiName, appName)
 		      						return addon.db.global.bypass_friends 
 		      					end,
 							order = 2.3,
+						},
+
+						minimap_icon_switch = {
+							type = "toggle",
+							width = "normal",
+							name = L["Show minimap icon"],
+							width = "normal",
+							set = function(info,val) 
+									addon.db.global.minimap_icon_switch = val 
+									if addon.db.global.minimap_icon_switch then
+										addon.AcamarMinimap:ShowIcon()
+									else
+										addon.AcamarMinimap:HideIcon()
+									end
+								end,
+		      				get = function(info) 
+		      						return addon.db.global.minimap_icon_switch 
+		      					end,
+							order = 2.4,
 						},
 
 						header06 = {

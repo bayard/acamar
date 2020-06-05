@@ -50,8 +50,8 @@ L["Message filtering running ..."] = "开始进行消息过滤..."
 L["Message filtering stopped."] = "消息过滤停止。"
 
 L["Rewrite messages"] = "精简消息"
-L["[RW] "] = "[简] "
-L["REWRITE_DESC"] = "将重复和啰嗦的消息精简，这类消息前面会添加|cff00cccc[简]|r的标志。消息量大的时候cpu负载会略高。"
+L["[RW] "] = "[|cff00cccc简|r] "
+L["REWRITE_DESC"] = "将重复和啰嗦的消息精简，这类消息前面会添加[|cff00cccc简|r]的标志。消息量大的时候cpu负载会略高。"
 
 L["Bypass friends"] = "不过滤好友"
 L["Do not filter members of guild, party/raid, and myself."] = "不要过滤公会、小组、团队的成员，当然包括我自己。"
@@ -59,6 +59,8 @@ L["Do not filter members of guild, party/raid, and myself."] = "不要过滤公�
 L["White list"] = "白名单"
 L["Enter player's name list to bypass filtering:"] = "输入白名单，名单里的玩家将不被屏蔽"
 L["One player in one single line"] = "注意格式：一行一个用户"
+
+L["Show minimap icon"] = "在小地图边显示图标"
 
 -- logs
 L["Acamar control window opened."] = "Acamar控制窗口已打开。"

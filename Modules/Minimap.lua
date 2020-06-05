@@ -7,10 +7,11 @@ local AcamarMinimap = addon:NewModule("AcamarMinimap", "AceEvent-3.0", "AceHook-
 
 local private = {}
 
+local LDBIcon = nil
 
 function AcamarMinimap:OnInitialize()
     local LDB = LibStub("LibDataBroker-1.1", true)
-    local LDBIcon = LDB and LibStub("LibDBIcon-1.0", true)
+    LDBIcon = LDB and LibStub("LibDBIcon-1.0", true)
 
     if LDB then
         local MinimapBtn = LDB:NewDataObject("AcamarBtn", {
@@ -35,4 +36,20 @@ function AcamarMinimap:OnInitialize()
             LDBIcon:Register(addonName, MinimapBtn, addon.db.global.minimap)
         end
     end
+end
+
+function AcamarMinimap:ShowIcon()
+    if LDBIcon == nil then
+        return
+    end
+
+    LDBIcon:Show(addonName)    
+end
+
+function AcamarMinimap:HideIcon()
+    if LDBIcon == nil then
+        return
+    end
+
+    LDBIcon:Hide(addonName)    
 end

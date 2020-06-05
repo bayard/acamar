@@ -99,17 +99,27 @@ local function RewriteMessage(ori)
         return ori
     end
 
+    --[[
     haslink = find_link(ori)
     -- skip message with item link
     if(haslink) then
         return
     end    
+    ]]
 
     local mmsg = nil
 
+    --[[
     if((len>=4) and (len%2==0)) then
-        mmsg = find_repeat_pattern_fast(ori)
+        -- fast, the function only find dups of: ABCABCABC
+        -- output ABC
+        --mmsg = find_repeat_pattern_fast(ori)
     end
+    ]]
+
+    -- slower, the function find dups of: xxABCABCABCyy
+    -- output xxABCyy
+    mmsg = remove_dups_deep(ori)
 
     -- second stage rewrite currently disabled because of in-consistency
     --[[
@@ -261,7 +271,7 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
 
             -- Rewrite message if set. Only apply to channel, say, yell
             if( (event == "CHAT_MSG_CHANNEL" or event == "CHAT_MSG_SAY" or event == "CHAT_MSG_YELL" ) 
-                and addon.db.global.message_rewrite ) then
+                and addon.db.global.message_rewrite and addon.db.global.message_filter_switch ) then
                 -- get rewritten message
                 remsg = RewriteMessage(message)
                 --remsg = "hello"

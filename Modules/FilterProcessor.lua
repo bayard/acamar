@@ -1698,6 +1698,163 @@ function find_repeat_pattern_fast(str)
 	end
 	return nil
 end
+
+------------- remove dups 
+function trim_compare_tables(t1, t2)
+    local ct1 = {}
+    local ct2 = {}
+
+    local c
+    c = 1
+    for i=1, #t1 do
+        if t1[i] ~= 0x20 and t1[i] ~= 0xa0 and t1[i] ~= 0x3000 then
+            ct1[c] = t1[i]
+            c = c + 1
+        end
+    end
+
+    c = 1
+    for i=1, #t2 do
+        if t2[i] ~= 0x20 and t2[i] ~= 0xa0 and t2[i] ~= 0x3000 then
+            ct2[c] = t2[i]
+            c = c + 1
+        end
+    end
+
+    if #ct1 ~= #ct2 then return false end
+    for i=1,#t1 do
+        if ct1[i] ~= ct2[i] then return false end
+    end
+    return true
+end
+
+function remove_dups_fast(str) 
+    local t = utf8_to_tbl(str)
+
+    local N = #t
+    local g
+
+    if N%2 == 0 then
+        g = math.floor(N/2)
+    else
+        g = math.floor((N-1)/2)
+    end
+
+    for ws = 2, g do
+        local ct1 = {}
+        local ct2 = {}
+        local dup = 0
+
+        -- construct table 1 from begining to ws of t
+        for i = 1, ws do
+            ct1[i] = t[i]
+        end
+        --print(ws .. " ct1=" .. unicode_tbl_to_utf8(ct1))
+
+        -- construct next tables to compare
+        for n = 1, N/ws do
+            for i = 1, ws do
+                if t[n*ws+i] ~= nil then
+                    ct2[i] = t[n*ws+i]
+                end
+            end
+            --print(n .. " ct2=" .. unicode_tbl_to_utf8(ct2))
+            if trim_compare_tables(ct1, ct2) then
+                dup = dup + 1
+            else
+                break
+            end
+        end
+
+        if dup>0 then
+            local rest = N-(dup+1)*ws
+            --print("Found " .. dup .. " dups, rest chars=" .. N-(dup+1)*ws)
+            rt = ct1
+            if rest > 0 then
+                for k=(dup+1)*ws+1, N do
+                    table.insert(rt, t[k])
+                end
+            end
+            --print("rt=" .. unicode_tbl_to_utf8(rt))
+            return unicode_tbl_to_utf8(rt)
+        end
+
+    end
+    return nil
+ end
+
+function remove_dups_deep(str) 
+    local t = utf8_to_tbl(str)
+
+    local N = #t
+    local halfn
+    if (N)%2 == 0 then
+        halfn = math.floor(N/2)
+    else
+        halfn = math.floor((N-1)/2)
+    end
+
+    for off = 0, halfn do
+        local g
+
+        if (N-off)%2 == 0 then
+            g = math.floor((N-off)/2)
+        else
+            g = math.floor(((N-off)-1)/2)
+        end
+
+        for ws = 2, g do
+            local ct1 = {}
+            local ct2 = {}
+            local dup = 0
+
+            -- construct table 1
+            for i = 1, ws do
+                ct1[i] = t[i+off]
+            end
+            --print(ws .. " ct1=" .. unicode_tbl_to_utf8(ct1))
+
+            -- construct next tables to compare
+            for n = 1, N/ws do
+                for i = 1, ws do
+                    if t[n*ws+i] ~= nil then
+                        ct2[i] = t[n*ws+i+off]
+                    end
+                end
+                --print(n .. " ct2=" .. unicode_tbl_to_utf8(ct2))
+                if trim_compare_tables(ct1, ct2) then
+                    dup = dup + 1
+                else
+                    break
+                end
+            end
+
+            if dup>0 then
+                local rest = N-(dup+1)*ws
+                --print("Found " .. dup .. " dups, rest chars=" .. N-(dup+1)*ws)
+                rt = {}
+                if off > 0 then
+                    for k=1, off+1 do
+                        table.insert(rt, t[k])
+                    end
+                end
+                for k=1, #ct1 do
+                    table.insert(rt, ct1[k])
+                end
+                if rest > 0 then
+                    for k=(dup+1)*ws+1, N do
+                        table.insert(rt, t[k+off])
+                    end
+                end
+                --print("rt=" .. unicode_tbl_to_utf8(rt))
+                return unicode_tbl_to_utf8(rt)
+            end
+
+        end
+    end
+
+    return nil
+ end
 ------------------------------------------------------------------------
 
 ---------------------------
