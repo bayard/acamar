@@ -1,5 +1,5 @@
 local addonName, addon = ...
-addon = LibStub("AceAddon-3.0"):NewAddon(addon, addonName, "AceEvent-3.0", "AceConsole-3.0")
+addon = LibStub("AceAddon-3.0"):NewAddon(addon, addonName, "AceEvent-3.0", "AceConsole-3.0", "AceHook-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale(addonName)
 local AceConfigRegistry = LibStub("AceConfigRegistry-3.0")
 local AceConfigDialog = LibStub("AceConfigDialog-3.0")
@@ -45,10 +45,11 @@ function addon:OnInitialize()
 	local chatfunc = function()
     	addon:ShowUI()
 	end
-	addon:RegisterChatCommand("acamar", chatfunc)
+
+	self:RegisterChatCommand("acamar", chatfunc)
 
 	-- initialize writing data on player logout
-	addon:RegisterEvent("PLAYER_LOGOUT", function()
+	self:RegisterEvent("PLAYER_LOGOUT", function()
 		addon:OnLogout()
 		end)
 end
@@ -73,7 +74,12 @@ function addon:OnEnable()
 	end
 
 	-- hook message or not based on setting
-	addon:HookSwitch()
+	self:HookSwitch()
+end
+
+-- clean job
+function addon:OnDisable()
+	self:UnhookAll()
 end
 
 function addon:OptionClicked()
@@ -106,12 +112,13 @@ function addon:UIToggle()
 	-- open or release addon main frame
 	if(addon.AcamarGUI.display) then
 		if(addon.AcamarGUI.display:IsShown()) then
-			addon:HideUI()
+			self:HideUI()
 		else
-			addon:ShowUI()
+			self:ShowUI()
 		end
 	else 
-		addon:ShowUI()
+		self:ShowUI()
 	end
 end
+
 -- EOF

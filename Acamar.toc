@@ -2,7 +2,7 @@
 ## Title: Acamar
 ## Title-zhCN: Acamar
 ## Author: Acamar@DaggerRidge
-## Version: 1.16
+## Version: 1.17
 ## Notes: |cff00aaaa Acamar auto-learning spam blocker.|r
 ## SavedVariables: AcamarDB
 

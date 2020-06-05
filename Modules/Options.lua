@@ -1,11 +1,46 @@
 local addonName, addon = ...
 local Options, L, LSM, WidgetLists
 ------------------------------------------------------------------------------
+local GetNumFriends, GetFriendInfo, GetNumIgnores, GetIgnoreName
+
 if(addonName ~= nil) then
 	Options = addon:NewModule("Options", "AceConsole-3.0")
 	L = LibStub("AceLocale-3.0"):GetLocale(addonName)
 	LSM = LibStub("LibSharedMedia-3.0")
 	WidgetLists = AceGUIWidgetLSMlists
+
+    GetNumFriends = C_FriendList.GetNumFriends
+    GetFriendInfo = C_FriendList.GetFriendInfo
+    GetNumIgnores = C_FriendList.GetNumIgnores
+    GetIgnoreName = C_FriendList.GetIgnoreName
+
+	-- hook add ignore events
+	addon.oriAddIgnore = C_FriendList.AddIgnore
+	C_FriendList.AddIgnore = function(...)
+		addon.oriAddIgnore(...)
+		Options:SyncBL()
+	end
+
+	-- hook del ignore events
+	addon.oriDelIgnore = C_FriendList.DelIgnore 
+	C_FriendList.DelIgnore = function(...)
+		addon.oriDelIgnore(...)
+		Options:SyncBL()
+	end
+
+	-- hook del by index
+	addon.oriDelIgnoreByIndex = C_FriendList.DelIgnoreByIndex
+	C_FriendList.DelIgnoreByIndex = function(...)
+		addon.oriDelIgnoreByIndex(...)
+		Options:SyncBL()
+	end
+
+	-- book add or del ignore
+	addon.oriAddOrDelIgnore = C_FriendList.AddOrDelIgnore 
+	C_FriendList.AddOrDelIgnore = function(...)
+		addon.oriAddOrDelIgnore(...)
+		Options:SyncBL()
+	end
 else
 	addon = {}
 	Options = {}
@@ -88,6 +123,7 @@ Options.defaults = {
 		deviation_threshold = 0.25,
 		-- whitelist
 		wl = {},
+		bl = {},
 		-- learning list
 		plist = {},
 		-- pre-learning list
@@ -111,24 +147,27 @@ Options.defaults = {
 local top500list = ""
 
 function Options:Load()
-    local keywords_enUS = {
-    };
-
-    local keywords_zhCN = {
-    };
-
-    -- loading default keywords based on locale
-	if( addon.db.global.keywords == nil ) then
-		if( GetLocale() == "zhCN" ) then
-			addon.db.global.keywords = keywords_zhCN
-		else 
-			addon.db.global.keywords = keywords_enUS
-		end
-	end
-
 	addon.db.global.creator_addon_version = addon.db.global.creator_addon_version or addon.METADATA.VERSION
 
-	--addon.db.global.ui_switch_on = addon.db.global.ui_switch_on or true
+	self:SyncBL()
+end
+
+function sync_bl_func()
+	-- sync ignore list
+	local ignorelist = {}
+	local count = 0
+	for i = 1, GetNumIgnores() do
+        ignorelist[GetIgnoreName(i)] = true
+        count = count + 1
+    end
+
+	addon.db.global.bl = ignorelist 
+
+	addon:log(L["Blacklist has beed updated."])
+end
+
+function Options:SyncBL()
+	C_Timer.After(1, sync_bl_func)
 end
 
 function Options:SaveSession()
@@ -390,6 +429,38 @@ function addon:SaveWL(str)
 	--addon:log("SaveWL" .. str)
 	local t = SplitString(str, "\n")
 	addon.db.global.wl = t
+end
+
+function AddIgnoreFunc(pname, ...)
+	addon:log("ignore " .. pname)
+end
+
+-- Blacklist synced from ignore list
+function GetBLTable()
+	local list = {}
+
+	local klist = {}
+	for key, val in pairs(addon.db.global.bl) do
+		if key then
+			table.insert(klist, key)
+		end
+	end
+
+	table.sort(klist)
+
+	local counter=0
+	for k, v in pairs(klist) do
+		counter = counter + 1
+		local idx = string.format("%08d", counter)
+		list[idx] = v
+    end
+
+    if counter == 0 then
+    	return {["0"] = L["Ignore list is empty."]}
+    end
+
+
+	return list
 end
 
 function UpdateMinimap()
@@ -678,6 +749,29 @@ function Options.GetOptions(uiType, uiName, appName)
 						},								
 					},
 				},
+
+				blacklist_panel = {
+					type = "group",
+					childGroups = "tab",
+					name = L["Ignore list"],
+					order = 8.5,
+					args = {
+						blacklist_desc = {
+							type = "description",
+							name = L["When you ignore a player, the player will synced to the list and their messages will be blocked."],
+							order = 8.51,
+						},
+						blacklist_select = {
+							type = "multiselect",
+							width = "full",
+							disabled = true,
+							name = L["Ignore list synced from friends/ignores"],
+							values = function(info) return GetBLTable() end,
+							order = 8.6,
+						},								
+					},
+				},
+
 				about_panel = {
 					type = "group",
 					childGroups = "tab",

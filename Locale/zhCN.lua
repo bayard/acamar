@@ -62,6 +62,12 @@ L["One player in one single line"] = "注意格式：一行一个用户"
 
 L["Show minimap icon"] = "在小地图边显示图标"
 
+L["Blacklist has beed updated."] = "黑名单已经更新。"
+L["Ignore list"] = "系统黑名单"
+L["When you ignore a player, the player will synced to the list and their messages will be blocked."] = "同步显示被屏蔽的玩家列表，这些玩家的消息会被屏蔽。"
+L["Ignore list synced from friends/ignores"] = "与系统屏蔽列表同步"
+L["Ignore list is empty."] = "尚无被屏蔽的玩家。"
+
 -- logs
 L["Acamar control window opened."] = "Acamar控制窗口已打开。"
 L["At current level, block spam score set to: "] = "当前过滤级别对应的垃圾得分为："

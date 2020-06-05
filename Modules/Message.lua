@@ -1,7 +1,7 @@
 local addonName, addon = ...
 local AcamarMessage, L, AceGUI, private
 ------------------------------------------------------------------------------
-local GetNumFriends, GetFriendInfo
+local GetNumFriends, GetFriendInfo, GetNumIgnores, GetIgnoreName
 local chatEvents
 
 if(addonName ~= nil) then
@@ -12,6 +12,8 @@ if(addonName ~= nil) then
 
     GetNumFriends = C_FriendList.GetNumFriends
     GetFriendInfo = C_FriendList.GetFriendInfo
+    GetNumIgnores = C_FriendList.GetNumIgnores
+    GetIgnoreName = C_FriendList.GetIgnoreName
 
     chatEvents = 
     {
@@ -234,6 +236,12 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
         return false
     elseif (from ~= nil) and (from ~= "") then
         local shortname = RemoveServerDash(from)
+
+        -- if the player is in ignore list
+        if( addon.db.global.bl[shortname] ) then
+            addon:log(shortname .. " is in blacklist.")
+            --return true
+        end
 
         -- bypass friends
         if addon.db.global.bypass_friends and IsFriend(shortname) then
