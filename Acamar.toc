@@ -1,10 +1,9 @@
 ## Interface: 11304
 ## Title: Acamar
 ## Title-zhCN: Acamar
-## Author: Acamar@匕首岭
-## Version: 1.12
-## Notes: |cff00aaaa Acamar spam terminator.|r
-## Notes-zhCN: |cff00aaaa Acamar 垃圾信息终结者。|r
+## Author: Acamar@DaggerRidge
+## Version: 1.16
+## Notes: |cff00aaaa Acamar auto-learning spam blocker.|r
 ## SavedVariables: AcamarDB
 
 Libs\LibStub\LibStub.lua

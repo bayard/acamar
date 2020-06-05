@@ -117,9 +117,9 @@ local function RewriteMessage(ori)
     end
     ]]
 
-    -- slower, the function find dups of: xxABCABCABCyy
+    -- fast and tuned algorithm, the function find dups of: xxABCABCABCyy
     -- output xxABCyy
-    mmsg = remove_dups_deep(ori)
+    mmsg = remove_dups(ori)
 
     -- second stage rewrite currently disabled because of in-consistency
     --[[
@@ -279,8 +279,8 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
                 --if(string.find(message, "G")) then
                     modifyMsg = REWRITE_PREFIX .. remsg
                     -- rewrite message
-                    --addon:log("rewrite from : " .. from .. ": " .. message)
-                    --addon:log("rewrite to: " .. modifyMsg)
+                    --addon:log("rewrite:" .. from .. ": " .. message)
+                    --addon:log("to:" .. modifyMsg)
                     return false, modifyMsg, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
                 end
             end 

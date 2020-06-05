@@ -9,14 +9,14 @@ local private = {}
 
 local LDBIcon = nil
 
-function AcamarMinimap:OnInitialize()
+function AcamarMinimap:CreateMinimapIcon()
     local LDB = LibStub("LibDataBroker-1.1", true)
     LDBIcon = LDB and LibStub("LibDBIcon-1.0", true)
 
     if LDB then
         local MinimapBtn = LDB:NewDataObject("AcamarBtn", {
             type = "launcher",
-    		text = addonName,
+            text = addonName,
             icon = "Interface\\AddOns\\Acamar\\Media\\acamar",
 
             OnClick = function(_, button)
@@ -38,9 +38,15 @@ function AcamarMinimap:OnInitialize()
     end
 end
 
+function AcamarMinimap:OnInitialize()
+    if addon.db.global.minimap_icon_switch then
+        AcamarMinimap:CreateMinimapIcon()
+    end
+end
+
 function AcamarMinimap:ShowIcon()
     if LDBIcon == nil then
-        return
+        self:CreateMinimapIcon()
     end
 
     LDBIcon:Show(addonName)    

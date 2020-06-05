@@ -392,6 +392,15 @@ function addon:SaveWL(str)
 	addon.db.global.wl = t
 end
 
+function UpdateMinimap()
+	--addon:log("addon.db.global.minimap_icon_switch=" .. tostring(addon.db.global.minimap_icon_switch))
+	if addon.db.global.minimap_icon_switch then
+		addon.AcamarMinimap:ShowIcon()
+	else
+		addon.AcamarMinimap:HideIcon()
+	end
+end
+
 -- debug
 if(addonName == nil) then
 
@@ -555,11 +564,7 @@ function Options.GetOptions(uiType, uiName, appName)
 							width = "normal",
 							set = function(info,val) 
 									addon.db.global.minimap_icon_switch = val 
-									if addon.db.global.minimap_icon_switch then
-										addon.AcamarMinimap:ShowIcon()
-									else
-										addon.AcamarMinimap:HideIcon()
-									end
+									UpdateMinimap()
 								end,
 		      				get = function(info) 
 		      						return addon.db.global.minimap_icon_switch 

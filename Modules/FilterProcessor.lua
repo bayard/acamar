@@ -1699,7 +1699,7 @@ function find_repeat_pattern_fast(str)
 	return nil
 end
 
-------------- remove dups 
+------------- remove dups, slow, need to optimize
 function trim_compare_tables(t1, t2)
     local ct1 = {}
     local ct2 = {}
@@ -1728,133 +1728,84 @@ function trim_compare_tables(t1, t2)
     return true
 end
 
-function remove_dups_fast(str) 
-    local t = utf8_to_tbl(str)
+-- fast compare table without copy table
+-- t: table
+-- p1: position 1
+-- p2: position 2
+-- size: size of elements to compare
+function compare_tables_part(t, p1, p2, size)
+ 	for i=1,size do
+    	if t[p1+i] ~= t[p2+i] then return false end
+ 	end
+ 	return true
+end
 
-    local N = #t
-    local g
+-- fast remove dups without copy table
+function remove_dups(str, fast) 
+	-- utf8 to unicode table
+	local t = utf8_to_tbl(str)
 
-    if N%2 == 0 then
-        g = math.floor(N/2)
-    else
-        g = math.floor((N-1)/2)
-    end
+	local N = #t
+	-- compare offset max set to half length of string
+	local maxoff = math.floor(N/2)
 
-    for ws = 2, g do
-        local ct1 = {}
-        local ct2 = {}
-        local dup = 0
+	-- increase offset from 0 to max offset
+	for off = 0, maxoff do
+		local g
 
-        -- construct table 1 from begining to ws of t
-        for i = 1, ws do
-            ct1[i] = t[i]
-        end
-        --print(ws .. " ct1=" .. unicode_tbl_to_utf8(ct1))
+		-- calculate max window size (target repeated substring to find)
+		if (N-off)%2 == 0 then
+			g = math.floor((N-off)/2)
+		else
+			g = math.floor(((N-off)-1)/2)
+		end
 
-        -- construct next tables to compare
-        for n = 1, N/ws do
-            for i = 1, ws do
-                if t[n*ws+i] ~= nil then
-                    ct2[i] = t[n*ws+i]
-                end
-            end
-            --print(n .. " ct2=" .. unicode_tbl_to_utf8(ct2))
-            if trim_compare_tables(ct1, ct2) then
-                dup = dup + 1
-            else
-                break
-            end
-        end
+		-- target repeated substring set to at least 3 chars
+		for ws = 3, g do
+			local dup = 0
 
-        if dup>0 then
-            local rest = N-(dup+1)*ws
-            --print("Found " .. dup .. " dups, rest chars=" .. N-(dup+1)*ws)
-            rt = ct1
-            if rest > 0 then
-                for k=(dup+1)*ws+1, N do
-                    table.insert(rt, t[k])
-                end
-            end
-            --print("rt=" .. unicode_tbl_to_utf8(rt))
-            return unicode_tbl_to_utf8(rt)
-        end
+			-- compare each window to first window begin with off
+			for n = 1, N/ws do
+				--print(n .. " ct2=" .. unicode_tbl_to_utf8(ct2))
+				-- if found repeat pattern
+				if compare_tables_part(t, off, n*ws+off, ws) then
+					-- increast repeat counter
+					dup = dup + 1
+				else
+					break
+				end
+			end
 
-    end
-    return nil
- end
+			-- if found repeated pattern
+			if dup>0 then
+				local rest = N-(dup+1)*ws
+				--print("Found " .. dup .. " dups, rest chars=" .. N-(dup+1)*ws)
+				rt = {}
 
-function remove_dups_deep(str) 
-    local t = utf8_to_tbl(str)
+				-- first part: from 0 to end of first window
+				for k=1, off+ws do
+					table.insert(rt, t[k])
+				end
+				-- if there are chars after repeated strings
+				if rest > 0 then
+					for k=(dup+1)*ws+1, N do
+						table.insert(rt, t[k+off])
+					end
+				end
+				--print("rt=" .. unicode_tbl_to_utf8(rt))
+				return unicode_tbl_to_utf8(rt)
+			end
 
-    local N = #t
-    local halfn
-    if (N)%2 == 0 then
-        halfn = math.floor(N/2)
-    else
-        halfn = math.floor((N-1)/2)
-    end
+		end
 
-    for off = 0, halfn do
-        local g
+		-- If fast set, only from first byte (offset 0)
+		if fast == true then
+			break
+		end
+	end
 
-        if (N-off)%2 == 0 then
-            g = math.floor((N-off)/2)
-        else
-            g = math.floor(((N-off)-1)/2)
-        end
-
-        for ws = 2, g do
-            local ct1 = {}
-            local ct2 = {}
-            local dup = 0
-
-            -- construct table 1
-            for i = 1, ws do
-                ct1[i] = t[i+off]
-            end
-            --print(ws .. " ct1=" .. unicode_tbl_to_utf8(ct1))
-
-            -- construct next tables to compare
-            for n = 1, N/ws do
-                for i = 1, ws do
-                    if t[n*ws+i] ~= nil then
-                        ct2[i] = t[n*ws+i+off]
-                    end
-                end
-                --print(n .. " ct2=" .. unicode_tbl_to_utf8(ct2))
-                if trim_compare_tables(ct1, ct2) then
-                    dup = dup + 1
-                else
-                    break
-                end
-            end
-
-            if dup>0 then
-                local rest = N-(dup+1)*ws
-                --print("Found " .. dup .. " dups, rest chars=" .. N-(dup+1)*ws)
-                rt = {}
-                if off > 0 then
-                    for k=1, off+1 do
-                        table.insert(rt, t[k])
-                    end
-                end
-                for k=1, #ct1 do
-                    table.insert(rt, ct1[k])
-                end
-                if rest > 0 then
-                    for k=(dup+1)*ws+1, N do
-                        table.insert(rt, t[k+off])
-                    end
-                end
-                --print("rt=" .. unicode_tbl_to_utf8(rt))
-                return unicode_tbl_to_utf8(rt)
-            end
-
-        end
-    end
-
-    return nil
- end
+	return nil
+end
 ------------------------------------------------------------------------
 
 ---------------------------
