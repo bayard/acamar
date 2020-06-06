@@ -64,11 +64,11 @@ L["One player in one single line"] = true
 
 L["Show minimap icon"] = true
 
-L["Blacklist has beed updated."] = true
-L["Ignore list"] = true
-L["When you ignore a player, the player will synced to the list and their messages will be blocked."] = true
-L["Ignore list synced from friends/ignores"] = true
+L["Blacklist has synced."] = true
+L["Black list"] = true
+L["BL_DESC"] = "When you ignore a player, the player will synced to the list and their messages will be blocked. Click a player to remove from blacklist. Unlimited."
 L["Ignore list is empty."] = true
+L[" had been removed from blacklist."] = true
 
 -- logs
 L["Acamar control window opened."] = true

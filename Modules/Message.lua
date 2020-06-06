@@ -239,8 +239,8 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
 
         -- if the player is in ignore list
         if( addon.db.global.bl[shortname] ) then
-            addon:log(shortname .. " is in blacklist.")
-            --return true
+            -- addon:log(shortname .. " is in blacklist.")
+            return true
         end
 
         -- bypass friends

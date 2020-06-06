@@ -3,6 +3,8 @@ local Options, L, LSM, WidgetLists
 ------------------------------------------------------------------------------
 local GetNumFriends, GetFriendInfo, GetNumIgnores, GetIgnoreName
 
+local ignorelist_before_hook = {}
+
 if(addonName ~= nil) then
 	Options = addon:NewModule("Options", "AceConsole-3.0")
 	L = LibStub("AceLocale-3.0"):GetLocale(addonName)
@@ -17,29 +19,33 @@ if(addonName ~= nil) then
 	-- hook add ignore events
 	addon.oriAddIgnore = C_FriendList.AddIgnore
 	C_FriendList.AddIgnore = function(...)
+		Options:FetchBL()
 		addon.oriAddIgnore(...)
-		Options:SyncBL()
+		Options:SyncBL(...)
 	end
 
 	-- hook del ignore events
 	addon.oriDelIgnore = C_FriendList.DelIgnore 
 	C_FriendList.DelIgnore = function(...)
+		Options:FetchBL()
 		addon.oriDelIgnore(...)
-		Options:SyncBL()
+		Options:SyncBL(...)
 	end
 
 	-- hook del by index
 	addon.oriDelIgnoreByIndex = C_FriendList.DelIgnoreByIndex
 	C_FriendList.DelIgnoreByIndex = function(...)
+		Options:FetchBL()
 		addon.oriDelIgnoreByIndex(...)
-		Options:SyncBL()
+		Options:SyncBL(...)
 	end
 
 	-- book add or del ignore
 	addon.oriAddOrDelIgnore = C_FriendList.AddOrDelIgnore 
 	C_FriendList.AddOrDelIgnore = function(...)
+		Options:FetchBL()
 		addon.oriAddOrDelIgnore(...)
-		Options:SyncBL()
+		Options:SyncBL(...)
 	end
 else
 	addon = {}
@@ -123,6 +129,7 @@ Options.defaults = {
 		deviation_threshold = 0.25,
 		-- whitelist
 		wl = {},
+		-- bl
 		bl = {},
 		-- learning list
 		plist = {},
@@ -152,22 +159,9 @@ function Options:Load()
 	self:SyncBL()
 end
 
-function sync_bl_func()
-	-- sync ignore list
-	local ignorelist = {}
-	local count = 0
-	for i = 1, GetNumIgnores() do
-        ignorelist[GetIgnoreName(i)] = true
-        count = count + 1
-    end
-
-	addon.db.global.bl = ignorelist 
-
-	addon:log(L["Blacklist has beed updated."])
-end
-
-function Options:SyncBL()
-	C_Timer.After(1, sync_bl_func)
+function Options:SyncBL(...)
+	local igargs = ...
+	C_Timer.After(1, function() sync_bl_func(igargs) end)
 end
 
 function Options:SaveSession()
@@ -356,7 +350,7 @@ function GetBannedTable(max)
 
 		local idx = string.format("%08d", counter)
 
-		list[idx] = bannedlist[key].name .. " [" .. spamcolor .. bannedlist[key].score .. "|r]" .. "\n"
+		list[idx] = bannedlist[key].name .. " [" .. spamcolor .. bannedlist[key].score .. "|r]"
 		counter = counter + 1
 		if counter>500 then
 			break
@@ -431,36 +425,68 @@ function addon:SaveWL(str)
 	addon.db.global.wl = t
 end
 
-function AddIgnoreFunc(pname, ...)
-	addon:log("ignore " .. pname)
+----------- blacklist functions
+function Options:FetchBL()
+	ignorelist_before_hook = {}
+	for i = 1, GetNumIgnores() do
+        ignorelist_before_hook[GetIgnoreName(i)] = true
+    end	 
 end
 
 -- Blacklist synced from ignore list
 function GetBLTable()
 	local list = {}
-
-	local klist = {}
-	for key, val in pairs(addon.db.global.bl) do
-		if key then
-			table.insert(klist, key)
-		end
+	for k, v in pairs(addon.db.global.bl) do
+		list[k] = k
 	end
-
-	table.sort(klist)
-
-	local counter=0
-	for k, v in pairs(klist) do
-		counter = counter + 1
-		local idx = string.format("%08d", counter)
-		list[idx] = v
-    end
-
-    if counter == 0 then
-    	return {["0"] = L["Ignore list is empty."]}
-    end
-
-
 	return list
+end
+
+function ToggleBLEntry(info, val)
+	--addon:log("info=" .. tostring(info) .. " val=" .. tostring(val) .. " dbval=" .. tostring(addon.db.global.bl[val]))
+	-- addon.db.global.bl[val] = not addon.db.global.bl[val]
+
+	addon.db.global.bl[val] = nil
+	C_FriendList.DelIgnore(val)
+	addon:log(val .. L[" had been removed from blacklist."])
+end
+
+-- igargs: arguments passed by C_FriendList:xxx functions
+function sync_bl_func(igargs)
+	local removed_list = {}
+
+	local current_ignorelist = {}
+	for i = 1, GetNumIgnores() do
+        current_ignorelist[GetIgnoreName(i)] = true
+    end
+
+    -- find removed players if any
+    for k,v in pairs(ignorelist_before_hook) do
+    	if( not current_ignorelist [k] ) then
+    		removed_list[k] = true
+    	end
+    end
+
+	-- sync current ignore list to blacklist
+	local count = 0
+	for i = 1, GetNumIgnores() do
+        addon.db.global.bl[GetIgnoreName(i)] = true
+        count = count + 1
+    end
+
+    -- remove players which had been removed from ignorelist from acamar's blacklist
+    for k, v in pairs(removed_list) do
+    	-- addon:log("Remove " .. k)
+    	addon.db.global.bl[k] = nil
+    end
+
+    if count > 0 then
+		addon:log(L["Blacklist has synced."])
+	end
+end
+
+function RemovePlayerFromBL()
+	--addon:log("RemovePlayerFromBL")
 end
 
 function UpdateMinimap()
@@ -722,16 +748,53 @@ function Options.GetOptions(uiType, uiName, appName)
 					},
 				},
 
+				blacklist_panel = {
+					type = "group",
+					childGroups = "tab",
+					name = L["Black list"],
+					order = 8.0,
+					args = {
+						blacklist_desc = {
+							type = "description",
+							name = L["BL_DESC"],
+							order = 8.01,
+						},
+						blacklist_select = {
+							type = "multiselect",
+							width = "full",
+							disabled = false,
+							name = L["Black list"],
+							values = function(info) return GetBLTable() end,
+							set = function(info, val)
+									ToggleBLEntry(info, val)
+								end,
+							get = function(info, val)  end,
+							order = 8.1,
+						},					
+						--[[			
+						command_removebl = {
+							type = "execute",
+							width = "normal",
+							name = L["Remove selected"],
+							confirm = false,
+							desc = L["Remove selected players from blacklist and sync with system ignore list"],
+							func = function(info) RemovePlayerFromBL() end,
+							order = 8.7,
+						},
+						]]
+					},
+				},
+
 				whitelist_panel = {
 					type = "group",
 					childGroups = "tab",
 					name = L["White list"],
-					order = 8.0,
+					order = 8.5,
 					args = {
 						whitelist_desc = {
 							type = "description",
 							name = L["Enter player's name list to bypass filtering:"],
-							order = 8.01,
+							order = 8.51,
 						},
 						whitelist_select = {
 							type = "input",
@@ -745,28 +808,6 @@ function Options.GetOptions(uiType, uiName, appName)
 		      				get = function(info) 
 		      						return addon:LoadWL()
 		      					end,
-							order = 8.1,
-						},								
-					},
-				},
-
-				blacklist_panel = {
-					type = "group",
-					childGroups = "tab",
-					name = L["Ignore list"],
-					order = 8.5,
-					args = {
-						blacklist_desc = {
-							type = "description",
-							name = L["When you ignore a player, the player will synced to the list and their messages will be blocked."],
-							order = 8.51,
-						},
-						blacklist_select = {
-							type = "multiselect",
-							width = "full",
-							disabled = true,
-							name = L["Ignore list synced from friends/ignores"],
-							values = function(info) return GetBLTable() end,
 							order = 8.6,
 						},								
 					},
