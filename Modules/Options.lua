@@ -5,6 +5,12 @@ local GetNumFriends, GetFriendInfo, GetNumIgnores, GetIgnoreName
 
 local ignorelist_before_hook = {}
 
+local OP_SYNC = 0
+local OP_ADD = 1
+local OP_DEL = 2
+local OP_ADD_DEL = 3
+local OP_DEL_IDX = 4
+
 if(addonName ~= nil) then
 	Options = addon:NewModule("Options", "AceConsole-3.0")
 	L = LibStub("AceLocale-3.0"):GetLocale(addonName)
@@ -19,33 +25,37 @@ if(addonName ~= nil) then
 	-- hook add ignore events
 	addon.oriAddIgnore = C_FriendList.AddIgnore
 	C_FriendList.AddIgnore = function(...)
+		local arg={...}
 		Options:FetchBL()
-		addon.oriAddIgnore(...)
-		Options:SyncBL(...)
+		addon.oriAddIgnore(arg[1])
+		Options:SyncBL(OP_ADD, arg[1])
 	end
 
 	-- hook del ignore events
 	addon.oriDelIgnore = C_FriendList.DelIgnore 
 	C_FriendList.DelIgnore = function(...)
+		local arg={...}
 		Options:FetchBL()
-		addon.oriDelIgnore(...)
-		Options:SyncBL(...)
+		addon.oriDelIgnore(arg[1])
+		Options:SyncBL(OP_DEL, arg[1])
 	end
 
 	-- hook del by index
 	addon.oriDelIgnoreByIndex = C_FriendList.DelIgnoreByIndex
 	C_FriendList.DelIgnoreByIndex = function(...)
+		local arg={...}
 		Options:FetchBL()
-		addon.oriDelIgnoreByIndex(...)
-		Options:SyncBL(...)
+		addon.oriDelIgnoreByIndex(arg[1])
+		Options:SyncBL(OP_ADD_DEL, arg[1])
 	end
 
 	-- book add or del ignore
 	addon.oriAddOrDelIgnore = C_FriendList.AddOrDelIgnore 
 	C_FriendList.AddOrDelIgnore = function(...)
+		local arg={...}
 		Options:FetchBL()
-		addon.oriAddOrDelIgnore(...)
-		Options:SyncBL(...)
+		addon.oriAddOrDelIgnore(arg[1])
+		Options:SyncBL(OP_DEL_IDX, arg[1])
 	end
 else
 	addon = {}
@@ -156,12 +166,12 @@ local top500list = ""
 function Options:Load()
 	addon.db.global.creator_addon_version = addon.db.global.creator_addon_version or addon.METADATA.VERSION
 
-	self:SyncBL()
+	self:SyncBL(OP_SYNC)
 end
 
 function Options:SyncBL(...)
-	local igargs = ...
-	C_Timer.After(1, function() sync_bl_func(igargs) end)
+	local syncargs = {...}
+	C_Timer.After(1, function() sync_bl_func(syncargs) end)
 end
 
 function Options:SaveSession()
@@ -452,7 +462,10 @@ function ToggleBLEntry(info, val)
 end
 
 -- igargs: arguments passed by C_FriendList:xxx functions
-function sync_bl_func(igargs)
+function sync_bl_func(syncargs)
+	local op = syncargs[1]
+	--addon:log("op=" .. op)
+
 	local removed_list = {}
 
 	local current_ignorelist = {}
@@ -478,6 +491,13 @@ function sync_bl_func(igargs)
     for k, v in pairs(removed_list) do
     	-- addon:log("Remove " .. k)
     	addon.db.global.bl[k] = nil
+    end
+
+    -- if in add mode, confirm the player be added to blacklist once system limit of 50 reached
+    if op == OP_ADD then
+    	-- addon:log("pname=" .. syncargs[2])
+    	addon.db.global.bl[syncargs[2]] = true
+		count = count + 1
     end
 
     if count > 0 then
