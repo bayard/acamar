@@ -42,6 +42,8 @@ function AcamarMinimap:OnInitialize()
     if addon.db.global.minimap_icon_switch then
         AcamarMinimap:CreateMinimapIcon()
     end
+
+    UpdateMinimap()
 end
 
 function AcamarMinimap:ShowIcon()
