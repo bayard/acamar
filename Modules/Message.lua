@@ -121,7 +121,10 @@ local function RewriteMessage(ori)
 
     -- fast and tuned algorithm, the function find dups of: xxABCABCABCyy
     -- output xxABCyy
-    mmsg = remove_dups(ori)
+    --mmsg = remove_dups(ori)
+
+    -- fastest and working better
+    mmsg = remove_dups_fast(ori)
 
     -- second stage rewrite currently disabled because of in-consistency
     --[[
