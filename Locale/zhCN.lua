@@ -22,7 +22,7 @@ L["Print current banned player list in chat window."] = "将当前被被屏蔽�
 L["Top 500 spammer list"] = "前500名垃圾信息发送者："
 
 L["Filtering Level"] = "过滤级别"
-L["Set messages filtering level"] = "选择过滤级别"
+L["Set messages filtering level"] = "选择过滤级别。基本后面的数字表示该基本对应分数，高于此分数的玩家将被屏蔽。"
 L["Most strict level with minimum spam"] = "最严格过滤"
 L["Bots, spammers, annoying senders and talkative players away"] = "脚本、垃圾信息、烦人以及多话的玩家走开"
 L["Block bots, spammers and annoying messages"] = "禁止脚本、垃圾信息、烦人的玩家"
@@ -68,12 +68,18 @@ L["BL_DESC"] = "被屏蔽的玩家列表，点击一个玩家把该玩家移出�
 L["Ignore list is empty."] = "尚无被屏蔽的玩家。"
 L[" had been removed from blacklist."] = "已经被移出黑名单。"
 
+L["MIN_INTERVAL_DESC"] = "允许同一玩家，或者同一玩家的相同消息，在设定时间内只发能一次。设为0则取消该限制。该限制只对正被学习的玩家生效，尚未被系统关注的玩家不受此限制影响。"
+L["Same player"] = "同一玩家"
+L["Allow only 1 message sent by same player during set interval (seconds)"] = "在设定的秒数内，同一玩家只能发1条消息。"
+L["Same message"] = "相同消息"
+L["Allow only 1 message with same content sent by same player during set interval (seconds)"] = "在设定的秒数内，同一玩家在同一频道里只能发1条相同内容的消息。"
+
 -- logs
 L["Acamar control window opened."] = "Acamar控制窗口已打开。"
 L["At current level, block spam score set to: "] = "当前过滤级别对应的垃圾得分为："
-L["'s behavior return normal and removed from the learning process."] = "的行为恢复正常，所以停止学习该玩家的行为。"
-L[" was talkative in last hour and added to learning process."] = "最近话多起来，已关注其聊天信息。"
-L[" was talkative in last day and added to learning process."] = "最近一天话多起来，已关注其聊天信息。"
+L["'s behavior return normal and removed from the learning process."] = "的行为恢复正常，停止学习该玩家。"
+L[" was talkative in last hour and added to learning process."] = "最近话多起来，开始关注后续聊天信息。"
+L[" was talkative in last day and added to learning process."] = "最近一天话多起来，开始关注后续聊天信息。"
 L["Performing analysis on user behavior ..."] = "正在分析用户聊天行为数据..."
 L["Performing optimization on learning DB ..."] = "正在优化数据库..."
 L["Chat messages filtering started."] = "聊天信息过滤启用。"

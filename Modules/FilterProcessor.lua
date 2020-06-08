@@ -11,7 +11,9 @@ if(addonName ~= nil) then
 	FilterProcessor = addon:NewModule("FilterProcessor", "AceEvent-3.0", "AceHook-3.0", "AceConsole-3.0")
 	L = LibStub("AceLocale-3.0"):GetLocale(addonName)
 	AceGUI = LibStub("AceGUI-3.0")
-	private = {}
+	private = {
+		plist = {},
+	}
 else
 	addon = {}
 
@@ -71,9 +73,11 @@ else
 						level = 1,
 						-- obtained by getuserinfobyguid
 						class = "warlock",
-						-- msgs table
 						-- bot or human, 0=human, 1=bot
 						bot = 0.9,
+						-- last accept time, if message was discard due to same player limitation
+						-- the field will not updated.
+						last_accept_time = 21311331,
 						-- messages sent by the player
 						msgs = {
 							-- message hash
@@ -93,6 +97,9 @@ else
 								first_time = 11111111,
 								-- last sent time, first read should ignored after addon reload
 								last_time = 21111111,
+								-- last accept time, if message was discard due to same player limitation
+								-- the field will not updated.
+								last_accept_time = 21311331,
 								--             消息数         周期特征消息数      频道号         偏差总平均         上次的周期                  
 								-- samplings. {msg_count (1), period_count (2), chan_num(3),  deviation_avg(4), last_period (5),}
 								samplings = {
@@ -607,6 +614,10 @@ function FilterProcessor:OnNewMessage(...)
 		return false, 0
 	end
 
+	-- reset limitation triggers
+	self.player_limitation_trigger = false
+	self.content_limitation_trigger = false
+
 	-- learning the talkative user
 	self:LearnMessage(msgdata)
 
@@ -624,9 +635,18 @@ function FilterProcessor:OnNewMessage(...)
 			if ( pfeature.score >= self.filter_score ) then
 				--addon:log("[Block] " .. pfeature.name .. ", score=" .. pfeature.score )
 				return true, pfeature.score 
+			else
+				--addon:log("[Not block] " .. pfeature.name .. ", score=" .. pfeature.score )
 			end
 		end
 
+	end
+
+	-- if limitation triggered
+	if self.player_limitation_trigger or self.content_limitation_trigger then
+		--addon:log("player:" .. tostring(self.player_limitation_trigger) .. ", content:" .. tostring(self.content_limitation_trigger))
+		--addon:log("[Block]: " .. msgdata.from .. " [" .. msgdata.message .. "]")
+		return true, 0		
 	end
 
 end
@@ -784,7 +804,148 @@ function FilterProcessor:LearnMessage(msgdata)
 	hashstr =  msgdata.chan_num .. ":" .. StringHash(msgdata.message)
 	msgdata.hash = hashstr
 
+	-- set limitation trigger flag from DB
+	--self:SetLimitationTriggerWithDB()
+
+	-- set limitation trigger flag in memory, support all players include those not under learning
+	self:CalcLimitationTriggerInMem()
+
 	self:BehaviorNewMessage(msgdata)
+
+	-- update limitation trigger with db
+	-- self:UpdateLimitationTriggerWithDB()
+
+	-- update limitation trigger in memory
+	self:UpdateLimitationTriggerInMem()
+end
+
+-- set player or messge limitation trigger
+function FilterProcessor:CalcLimitationTriggerInMem()
+	-- set discard flag if interval limitation of same player triggered
+	-- if interval set and player exists
+	if addon.db.global.min_interval_same_player>0 and private.plist[msgdata.guid] then
+		--addon:log( "[INT PLAYER] " .. msgdata.from .. " exists, limit=" .. addon.db.global.min_interval_same_player )
+		-- if last accept time exists
+		if private.plist[msgdata.guid].last_accept_time ~= nil then
+			local diff = msgdata.receive_time - private.plist[msgdata.guid].last_accept_time
+			--addon:log( "[INT PLAYER] " .. msgdata.from .. " has last_accept_time, diff=" .. diff )
+			-- if within the limited period
+			if diff <= addon.db.global.min_interval_same_player then
+				--addon:log( "[INT PLAYER Block] " .. msgdata.from .. " " .. diff .. "<=" .. addon.db.global.min_interval_same_player)
+				-- set trigger flag
+				self.player_limitation_trigger = true
+			-- if not triggered
+			end
+		end
+	end
+
+	-- set discard flag if interval limitation of same content triggered
+	-- if interval set and player exists
+	if addon.db.global.min_interval_same_message>0 and private.plist[msgdata.guid] then
+		--addon:log( "[INT MSG] " .. msgdata.from .. " exists, limit=" .. addon.db.global.min_interval_same_message )
+		-- content exists
+		if private.plist[msgdata.guid].msgs[msgdata.hash] then
+			--addon:log( "[INT MSG] " .. msgdata.from .. " same message exists" )
+			-- if last accept time exists
+			if private.plist[msgdata.guid].msgs[msgdata.hash].last_accept_time ~= nil then
+				local diff = msgdata.receive_time - private.plist[msgdata.guid].msgs[msgdata.hash].last_accept_time
+				--addon:log( "[INT MSG] " .. msgdata.from .. " same message has last_accept_time, diff=" .. diff .. " vs " .. addon.db.global.min_interval_same_message )
+				-- if within the limited period
+				if diff <= addon.db.global.min_interval_same_message then
+					--addon:log( "[INT MSG Block] " .. msgdata.from .. " " .. diff .. "<=" .. addon.db.global.min_interval_same_message)
+					-- set trigger flag
+					self.content_limitation_trigger = true
+				-- if not triggered
+				end
+			end
+		end
+	end
+
+	-- get or set plist data 
+	if private.plist[msgdata.guid] == nil then
+		private.plist[msgdata.guid] = {
+			msgs = {},
+			last_accept_time = msgdata.receive_time,
+		}
+	end
+
+	-- get or set messages node
+	if private.plist[msgdata.guid].msgs[msgdata.hash] == nil then
+		private.plist[msgdata.guid].msgs[msgdata.hash] = { last_accept_time = msgdata.receive_time }
+	end
+end
+
+-- Update accept time with db
+function FilterProcessor:UpdateLimitationTriggerInMem()
+
+	-- if same player limitation not triggered
+	if not self.player_limitation_trigger then
+		-- update player's last_accept_time
+		private.plist[msgdata.guid].last_accept_time = msgdata.receive_time
+	end
+
+	-- if same content limitation not triggered
+	if not self.content_limitation_trigger then
+		-- update content's last_accept_time
+		private.plist[msgdata.guid].msgs[msgdata.hash].last_accept_time = msgdata.receive_time
+	end
+end
+
+-- set player or messge limitation trigger
+function FilterProcessor:CalcLimitationTriggerWithDB()
+	-- set discard flag if interval limitation of same player triggered
+	-- if interval set and player exists
+	if addon.db.global.min_interval_same_player>0 and addon.db.global.plist[msgdata.guid] then
+		--addon:log( "[INT PLAYER] " .. msgdata.from .. " exists, limit=" .. addon.db.global.min_interval_same_player )
+		-- if last accept time exists
+		if addon.db.global.plist[msgdata.guid].last_accept_time ~= nil then
+			--addon:log( "[INT PLAYER] " .. msgdata.from .. " has last_accept_time, diff=" .. (msgdata.receive_time - addon.db.global.plist[msgdata.guid].last_accept_time) )
+			-- if within the limited period
+			if msgdata.receive_time - addon.db.global.plist[msgdata.guid].last_accept_time <= addon.db.global.min_interval_same_player then
+				--addon:log( "[INT PLAYER Block] " .. msgdata.from .. " " .. (msgdata.receive_time - addon.db.global.plist[msgdata.guid].last_accept_time) .. "<=" .. addon.db.global.min_interval_same_player)
+				-- set trigger flag
+				self.player_limitation_trigger = true
+			-- if not triggered
+			end
+		end
+	end
+
+	-- set discard flag if interval limitation of same content triggered
+	-- if interval set and player exists
+	if addon.db.global.min_interval_same_message>0 and addon.db.global.plist[msgdata.guid] then
+		--addon:log( "[INT MSG] " .. msgdata.from .. " exists, limit=" .. addon.db.global.min_interval_same_message )
+		-- content exists
+		if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash] then
+			--addon:log( "[INT MSG] " .. msgdata.from .. " same message exists" )
+			-- if last accept time exists
+			if addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].last_accept_time ~= nil then
+				--addon:log( "[INT MSG] " .. msgdata.from .. " same message has last_accept_time, diff=" .. (msgdata.receive_time - addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].last_accept_time) )
+				-- if within the limited period
+				if msgdata.receive_time - addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].last_accept_time <= addon.db.global.min_interval_same_message then
+					--addon:log( "[INT MSG Block] " .. msgdata.from .. " " .. (msgdata.receive_time - addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].last_accept_time) .. "<=" .. addon.db.global.min_interval_same_message)
+					-- set trigger flag
+					self.content_limitation_trigger = true
+				-- if not triggered
+				end
+			end
+		end
+	end
+end
+
+-- Update accept time with db
+function FilterProcessor:UpdateLimitationTriggerWithDB()
+
+	-- if same player limitation not triggered
+	if not self.player_limitation_trigger then
+		-- update player's last_accept_time
+		addon.db.global.plist[msgdata.guid].last_accept_time = msgdata.receive_time
+	end
+
+	-- if same content limitation not triggered
+	if not self.content_limitation_trigger then
+		-- update content's last_accept_time
+		addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].last_accept_time = msgdata.receive_time
+	end
 end
 
 -- learn user messaging behavior
@@ -803,6 +964,7 @@ function FilterProcessor:BehaviorNewMessage(msgdata)
 			name = msgdata.from,
 			class = string.lower(engClass),
 			msgs = {},
+			last_accept_time = msgdata.receive_time,
 		}
 
 	-- get or set messages node
@@ -815,6 +977,7 @@ function FilterProcessor:BehaviorNewMessage(msgdata)
 			-- event = msgdata.event, -- for debug purpose
 			first_time = msgdata.receive_time,
 			last_time = msgdata.receive_time,
+			last_accept_time = msgdata.receive_time,
 			lastperiod = 0,
 			samplings = {
 				all_time = {0, 0, msgdata.chan_num, 0, nil},
@@ -845,6 +1008,7 @@ function FilterProcessor:BehaviorNewMessage(msgdata)
 
 	-- update last_time to message receival time
 	addon.db.global.plist[msgdata.guid].msgs[msgdata.hash].last_time = msgdata.receive_time
+
 end
 
 -- perform all sampling

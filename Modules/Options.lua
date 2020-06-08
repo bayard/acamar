@@ -107,6 +107,10 @@ Options.defaults = {
 		message_rewrite = true,
 		-- bypass friends
 		bypass_friends = true,
+		-- same player messages min interval, 0-unlimited
+		min_interval_same_player = 0,
+		-- same player same message min interval, 0-unlimited
+		min_interval_same_message = 0,
 		-- minimap icon switch
 		minimap_icon_switch = true,
 		-- analysis run params
@@ -689,17 +693,44 @@ function Options.GetOptions(uiType, uiName, appName)
 							order = 2.4,
 						},
 
-						header06 = {
+						header_interval = {
 							type = "header",
 							name = "",
 							order = 3.01,
 						},
 
-						authorinfo = {
+						min_interval_desc = {
 							type = "description",
-							name = L["AUTHOR_INFO"],
-							descStyle = L["AUTHOR_INFO"],
+							name = L["MIN_INTERVAL_DESC"],
 							order = 3.1,
+						},
+
+						min_interval_same_player = {
+							type = "range",
+							width = "double",
+							min = 0,
+							max = 3600,
+							step = 1,
+							softMin = 0,
+							softMax = 3600,
+							name = L["Same player"],
+							desc = L["Allow only 1 message sent by same player during set interval (seconds)"],
+							width = "normal",
+							order = 3.2,
+						},
+
+						min_interval_same_message = {
+							type = "range",
+							width = "double",
+							min = 0,
+							max = 3600,
+							step = 1,
+							softMin = 0,
+							softMax = 3600,
+							name = L["Same message"],
+							desc = L["Allow only 1 message with same content sent by same player during set interval (seconds)"],
+							width = "normal",
+							order = 3.3,
 						},
 					},
 				},
@@ -842,7 +873,20 @@ function Options.GetOptions(uiType, uiName, appName)
 						top500_list_desc = {
 							type = "description",
 							name = L["ABOUT_INFO"],
+							order = 8.01,
+						},
+
+						header_author = {
+							type = "header",
+							name = "",
 							order = 9.01,
+						},
+
+						authorinfo = {
+							type = "description",
+							name = L["AUTHOR_INFO"],
+							descStyle = L["AUTHOR_INFO"],
+							order = 9.1,
 						},
 					},
 				},

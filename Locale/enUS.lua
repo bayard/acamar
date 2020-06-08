@@ -24,7 +24,7 @@ L["Print current banned player list in chat window."] = true
 L["Top 500 spammer list"] = true
 
 L["Filtering Level"] = true
-L["Set messages filtering level"] = true
+L["Set messages filtering level"] = "Set filtering level. Players with spam score higher than the ending number will be blocked."
 L["Most strict level with minimum spam"] = true
 L["Bots, spammers, annoying senders and talkative players away"] = true
 L["Block bots, spammers and annoying messages"] = true
@@ -69,6 +69,12 @@ L["Black list"] = true
 L["BL_DESC"] = "When you ignore a player, the player will synced to the list and their messages will be blocked. Click a player to remove from blacklist. Unlimited."
 L["Ignore list is empty."] = true
 L[" had been removed from blacklist."] = true
+
+L["MIN_INTERVAL_DESC"] = "Allow only 1 message by same player, or with same content by same player during certain period of seconds. Set to 0 to remove the limitation. Only apply to players under learning."
+L["Same player"] = true
+L["Allow only 1 message sent by same player during set interval (seconds)"] = true
+L["Same message"] = true
+L["Allow only 1 message with same content sent by same player during set interval (seconds)"] = "Allow only 1 message with same content in same channel sent by same player during set interval (seconds)"
 
 -- logs
 L["Acamar control window opened."] = true
