@@ -70,7 +70,7 @@ L["BL_DESC"] = "When you ignore a player, the player will synced to the list and
 L["Ignore list is empty."] = true
 L[" had been removed from blacklist."] = true
 
-L["MIN_INTERVAL_DESC"] = "Allow only 1 message by same player, or with same content by same player during certain period of seconds. Set to 0 to remove the limitation. Only apply to players under learning."
+L["MIN_INTERVAL_DESC"] = "Allow only 1 message by same player, or with same content by same player during certain period of seconds. Set to 0 to remove the limitation."
 L["Same player"] = true
 L["Allow only 1 message sent by same player during set interval (seconds)"] = true
 L["Same message"] = true

@@ -68,7 +68,7 @@ L["BL_DESC"] = "被屏蔽的玩家列表，点击一个玩家把该玩家移出�
 L["Ignore list is empty."] = "尚无被屏蔽的玩家。"
 L[" had been removed from blacklist."] = "已经被移出黑名单。"
 
-L["MIN_INTERVAL_DESC"] = "允许同一玩家，或者同一玩家的相同消息，在设定时间内只发能一次。设为0则取消该限制。该限制只对正被学习的玩家生效，尚未被系统关注的玩家不受此限制影响。"
+L["MIN_INTERVAL_DESC"] = "允许同一玩家，或者同一玩家的相同消息，在设定时间内只发能一次。设为0则取消该限制。"
 L["Same player"] = "同一玩家"
 L["Allow only 1 message sent by same player during set interval (seconds)"] = "在设定的秒数内，同一玩家只能发1条消息。"
 L["Same message"] = "相同消息"
