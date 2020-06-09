@@ -21,42 +21,6 @@ if(addonName ~= nil) then
     GetFriendInfo = C_FriendList.GetFriendInfo
     GetNumIgnores = C_FriendList.GetNumIgnores
     GetIgnoreName = C_FriendList.GetIgnoreName
-
-	-- hook add ignore events
-	addon.oriAddIgnore = C_FriendList.AddIgnore
-	C_FriendList.AddIgnore = function(...)
-		local arg={...}
-		Options:FetchBL()
-		addon.oriAddIgnore(arg[1])
-		Options:SyncBL(OP_ADD, arg[1])
-	end
-
-	-- hook del ignore events
-	addon.oriDelIgnore = C_FriendList.DelIgnore 
-	C_FriendList.DelIgnore = function(...)
-		local arg={...}
-		Options:FetchBL()
-		addon.oriDelIgnore(arg[1])
-		Options:SyncBL(OP_DEL, arg[1])
-	end
-
-	-- hook del by index
-	addon.oriDelIgnoreByIndex = C_FriendList.DelIgnoreByIndex
-	C_FriendList.DelIgnoreByIndex = function(...)
-		local arg={...}
-		Options:FetchBL()
-		addon.oriDelIgnoreByIndex(arg[1])
-		Options:SyncBL(OP_ADD_DEL, arg[1])
-	end
-
-	-- book add or del ignore
-	addon.oriAddOrDelIgnore = C_FriendList.AddOrDelIgnore 
-	C_FriendList.AddOrDelIgnore = function(...)
-		local arg={...}
-		Options:FetchBL()
-		addon.oriAddOrDelIgnore(arg[1])
-		Options:SyncBL(OP_DEL_IDX, arg[1])
-	end
 else
 	addon = {}
 	Options = {}
@@ -167,14 +131,74 @@ Options.defaults = {
 
 local top500list = ""
 
+local function ignoreMore(player)
+	addon:log("ignoreMore")
+end
+
+local function HookIgnore1()
+	local C_FriendListAddIgnore = C_FriendList.AddIgnore
+	local C_FriendListAddOrDelIgnore = C_FriendList.AddOrDelIgnore
+
+	--hooksecurefunc("C_FriendListAddIgnore", ignoreMore)
+	--hooksecurefunc("C_FriendListAddOrDelIgnore", ignoreMore)
+end
+
+local function HookIgnoreAPIs()
+	-- hook add ignore events
+	addon.oriAddIgnore = C_FriendList.AddIgnore
+	C_FriendList.AddIgnore = function(...)
+		local arg={...}
+		Options:FetchBL()
+		addon.oriAddIgnore(arg[1])
+		Options:SyncBL(OP_ADD, arg[1])
+	end
+
+	-- hook del ignore events
+	addon.oriDelIgnore = C_FriendList.DelIgnore 
+	C_FriendList.DelIgnore = function(...)
+		local arg={...}
+		Options:FetchBL()
+		addon.oriDelIgnore(arg[1])
+		Options:SyncBL(OP_DEL, arg[1])
+	end
+
+	-- hook del by index
+	addon.oriDelIgnoreByIndex = C_FriendList.DelIgnoreByIndex
+	C_FriendList.DelIgnoreByIndex = function(...)
+		local arg={...}
+		Options:FetchBL()
+		addon.oriDelIgnoreByIndex(arg[1])
+		Options:SyncBL(OP_ADD_DEL, arg[1])
+	end
+
+	-- book add or del ignore
+	addon.oriAddOrDelIgnore = C_FriendList.AddOrDelIgnore 
+	C_FriendList.AddOrDelIgnore = function(...)
+		local arg={...}
+		Options:FetchBL()
+		addon.oriAddOrDelIgnore(arg[1])
+		Options:SyncBL(OP_DEL_IDX, arg[1])
+	end
+end
+
+-----------------------------------------
+-- Load after addon enabled
 function Options:Load()
 	addon.db.global.creator_addon_version = addon.db.global.creator_addon_version or addon.METADATA.VERSION
+
+ 	HookIgnoreAPIs()
+
+ 	--HookIgnore1()
 
 	self:SyncBL(OP_SYNC)
 end
 
 function Options:SyncBL(...)
 	local syncargs = {...}
+
+	--local apistack = debugstack(2,5)
+	--addon:log(apistack)
+
 	C_Timer.After(1, function() sync_bl_func(syncargs) end)
 end
 
@@ -366,7 +390,7 @@ function GetBannedTable(max)
 
 		list[idx] = bannedlist[key].name .. " [" .. spamcolor .. bannedlist[key].score .. "|r]"
 		counter = counter + 1
-		if counter>500 then
+		if counter>=500 then
 			break
 		end
     end
@@ -491,7 +515,7 @@ function sync_bl_func(syncargs)
         count = count + 1
     end
 
-    -- remove players which had been removed from ignorelist from acamar's blacklist
+    -- remove players which had been removed from ignorelist of acamar's blacklist
     for k, v in pairs(removed_list) do
     	-- addon:log("Remove " .. k)
     	addon.db.global.bl[k] = nil
