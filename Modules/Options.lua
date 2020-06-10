@@ -186,7 +186,7 @@ function Options:SyncBL(...)
 	--local apistack = debugstack(2,5)
 	--addon:log(apistack)
 
-	C_Timer.After(1, function() sync_bl_func(syncargs) end)
+	C_Timer.After(0.1, function() sync_bl_func(syncargs) end)
 end
 
 function Options:SaveSession()
@@ -460,6 +460,7 @@ end
 
 -- blocklist synced from ignore list
 function GetBLTable()
+	--addon:log(time() .. " GetBLTable")
 	local list = {}
 	for k, v in pairs(addon.db.global.bl) do
 		list[k] = k
@@ -480,59 +481,36 @@ end
 function sync_bl_func(syncargs)
 	local op = syncargs[1]
 	local pname = syncargs[2]
+	
 	if pname ~= nil then
 		pname = string.match(pname, "([^-]+)")
 	end
 	--addon:log("op=" .. op .. ", arg2=" .. tostring(syncargs[2]) .. ", pname=" .. tostring(pname) )
 
-	local removed_list = {}
-
-	local current_ignorelist = {}
-	for i = 1, GetNumIgnores() do
-        current_ignorelist[GetIgnoreName(i)] = true
-    end
-
-    -- find removed players if any
-    for k,v in pairs(ignorelist_before_hook) do
-    	if( not current_ignorelist [k] ) then
-    		removed_list[k] = true
-    	end
-    end
-
-	-- sync current ignore list to blocklist
-	local count = 0
-	for i = 1, GetNumIgnores() do
-        addon.db.global.bl[GetIgnoreName(i)] = true
-        count = count + 1
-    end
-
-    -- remove players which had been removed from ignorelist of acamar's blocklist
-    for k, v in pairs(removed_list) do
-    	-- addon:log("Remove " .. k)
-    	addon.db.global.bl[k] = nil
-    end
-
     -- if in add mode, confirm the player be added to blocklist once system limit of 50 reached
     if op == OP_ADD then
     	addon.db.global.bl[pname] = true
-		--addon:log("block syncargs[2]=" .. pname)
-		count = count + 1
+		addon:log(pname .. L[" added to blocklist."])
 	-- toggle add/remove
-	elseif op == OP_ADD_DEL then
+	elseif op == OP_DEL then
 		if addon.db.global.bl[pname] then
-			--addon:log("unblock syncargs[2]=" .. pname)
+			--addon:log("OP_DEL unblock " .. pname)
 			addon.db.global.bl[pname] = nil
-		else
-			--addon:log("block syncargs[2]=" .. pname)
+			addon:log(pname .. L[" had been removed from blocklist."])
+		end
+	elseif op == OP_ADD_DEL then
+		if addon.db.global.bl[pname] == nil then
+			--addon:log("OP_ADD_DEL block " .. pname)
 			addon.db.global.bl[pname] = true
+			addon:log(pname .. L[" added to blocklist."])
+		else
+			--addon:log("OP_ADD_DEL unblock " .. pname)
+			addon.db.global.bl[pname] = nil
+			addon:log(pname .. L[" had been removed from blocklist."])
 		end
 	-- remove by index, ignore system removed by index, due to inconsistency of system ignore list with acamar's blocklist
 	elseif op == OP_ADDDEL_IDX then
     end
-
-    if count > 0 then
-		addon:log(L["Blocklist has synced."])
-	end
 end
 
 function RemovePlayerFromBL()
