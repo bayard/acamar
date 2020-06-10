@@ -93,221 +93,29 @@ sample data
 },
 ]]
 
-
+-------------------------
+-- hook chat window player item link menu
 function HookPlayerGameTooltip()
-    addon:log("HookPlayerGameTooltip")
-    --[[
-    GameTooltip:HookScript("OnTooltipSetUnit", function(tooltip, spellid)
-        tooltip:AddLine("It is a test line")
-    end)
-    ]]
-
-    --hook popup menu
-    --Hook2()
-
-    AcamarMessage:Hook6()
+    AcamarMessage:HookKeydownHyperlink()
 end
 
-function Hook1()
-    UnitPopupButtons["AddtoBlacklist"] = {text = "BlackList", dist = 0}
-
-    --Insert it to the end -1
-    tinsert(UnitPopupMenus["PARTY"], (#UnitPopupMenus["PARTY"]) - 1, "AddtoBlacklist")
-    tinsert(UnitPopupMenus["RAID_PLAYER"], (#UnitPopupMenus["RAID_PLAYER"]) - 1, "AddtoBlacklist")
-    tinsert(UnitPopupMenus["PLAYER"], (#UnitPopupMenus["PLAYER"]) - 1, "AddtoBlacklist")
-    tinsert(UnitPopupMenus["CHAT_ROSTER"], (#UnitPopupMenus["CHAT_ROSTER"]) - 1, "AddtoBlacklist")
-    tinsert(UnitPopupMenus["FRIEND"], (#UnitPopupMenus["FRIEND"]) - 1, "AddtoBlacklist")
-
-    hooksecurefunc(
-        "UnitPopup_OnClick",
-        function()
-            --[[
-            if (self.value == "AddtoBlacklist") then
-                local dropdownMenu = _G["UIDROPDOWNMENU_INIT_MENU"]
-                if (dropdownMenu.name ~= UnitName("player")) then
-                    BlackList:AddPlayer(dropdownMenu.name)
-                end
-            end
-            ]]
-        end
-    )
-end
-
-function Hook2()
-    local function blackListButton(self)
-        if self.value == "BlacklistButton" then
-            -- print("RedButton clicked")
-            local dropdownMenu = _G["UIDROPDOWNMENU_INIT_MENU"]
-            if (dropdownMenu.name ~= UnitName("player")) then
-                AcamarMessage:AddPlayer(dropdownMenu.name)
-            end
-        else
-            print(" WTF how did I fail?")
-        end
-    end
-
-    hooksecurefunc(
-        "UnitPopup_ShowMenu",
-        function()
-            if (UIDROPDOWNMENU_MENU_LEVEL > 1) then
-                return
-            end
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = "Add to BlackList"
-            info.owner = which
-            info.notCheckable = 1
-            info.func = blackListButton
-            info.colorCode = "|cffff0000"
-            info.value = "BlacklistButton"
-
-            UIDropDownMenu_AddButton(info)
-        end
-    )
-end
-
-function Hook3()
-    local AddFriend = C_FriendList and C_FriendList.AddFriend or AddFriend or function() end
-    local SendWho = C_FriendList and C_FriendList.SendWho or SendWho or function() end
-
-    local UnitPopupButtonsExtra = {
-        ["SEND_WHO"] = { enUS ="Query Detail",  zhCN = "查询玩家", zhTW = "查詢玩家" },
-        ["NAME_COPY"] = { enUS ="Get Name",     zhCN = "获取名字", zhTW = "獲取名字" },
-        ["GUILD_ADD"] = { enUS ="Guild Invite", zhCN = "公会邀请", zhTW = "公會邀請" },
-        ["FRIEND_ADD"] = { enUS ="Add Friend",  zhCN = "添加好友", zhTW = "添加好友" },
-    }
-
-    for k, v in pairs(UnitPopupButtonsExtra) do
-        v.text = v[locale] or k
-        UnitPopupButtons[k] = v
-    end
-
-    tinsert(UnitPopupMenus["FRIEND"], 1, "NAME_COPY")
-    tinsert(UnitPopupMenus["FRIEND"], 1, "SEND_WHO")
-    tinsert(UnitPopupMenus["FRIEND"], 1, "FRIEND_ADD")
-    tinsert(UnitPopupMenus["FRIEND"], 1, "GUILD_ADD")
-
-    tinsert(UnitPopupMenus["CHAT_ROSTER"], 1, "NAME_COPY")
-    tinsert(UnitPopupMenus["CHAT_ROSTER"], 1, "SEND_WHO")
-    tinsert(UnitPopupMenus["CHAT_ROSTER"], 1, "FRIEND_ADD")
-    tinsert(UnitPopupMenus["CHAT_ROSTER"], 1, "INVITE")
-
-    tinsert(UnitPopupMenus["GUILD"], 1, "NAME_COPY")
-    tinsert(UnitPopupMenus["GUILD"], 1, "FRIEND_ADD")
-
-    local function popupClick(self, info)
-        local editBox
-        local name, server = UnitName(info.unit)
-        if (info.value == "NAME_COPY") then
-            editBox = ChatEdit_ChooseBoxForSend()
-            local hasText = (editBox:GetText() ~= "")
-            ChatEdit_ActivateChat(editBox)
-            editBox:Insert(name)
-            if (not hasText) then editBox:HighlightText() end
-        end
-    end
-
-    hooksecurefunc("UnitPopup_ShowMenu", function(dropdownMenu, which, unit, name, userData)
-        if (UIDROPDOWNMENU_MENU_LEVEL > 1) then return end
-        --if (unit and (unit == "target" or string.find(unit, "party"))) then
-            local info
-            info = UIDropDownMenu_CreateInfo()
-            info.text = UnitPopupButtonsExtra["NAME_COPY"].text
-            info.arg1 = {value="NAME_COPY",unit=unit}
-            info.func = popupClick
-            info.notCheckable = true
-            UIDropDownMenu_AddButton(info)
-        --end
-    end)
-
-    hooksecurefunc("UnitPopup_OnClick", function(self)
-        local unit = UIDROPDOWNMENU_INIT_MENU.unit
-        local name = UIDROPDOWNMENU_INIT_MENU.name
-        local server = UIDROPDOWNMENU_INIT_MENU.server
-        local fullname = name
-        local editBox
-        --if (server and (not unit or UnitRealmRelationship(unit) ~= LE_REALM_RELATION_SAME)) then
-        --  fullname = name .. "-" .. server
-        --end
-        if (self.value == "NAME_COPY") then
-            editBox = ChatEdit_ChooseBoxForSend()
-            local hasText = (editBox:GetText() ~= "")
-            ChatEdit_ActivateChat(editBox)
-            editBox:Insert(fullname)
-            if (not hasText) then editBox:HighlightText() end
-        elseif (self.value == "FRIEND_ADD") then
-            AddFriend(fullname)
-        elseif (self.value == "SEND_WHO") then
-            SendWho("n-"..name)
-        elseif (self.value == "GUILD_ADD") then
-            GuildInvite(fullname)
-        end
-    end)
-end
-
-function Hook4()
-    
-    hooksecurefunc("UnitPopup_ShowMenu", function(self)
-        addon:log("UnitPopup_ShowMenu")
-    end)
-
-    hooksecurefunc("UnitPopup_OnClick", function(self)
-        addon:log("UnitPopup_OnClick")
-    end)
-
-end
-
----------- 5 begin
-
-function Hook5()
-    local function showTooltip(self, linkData)
-        local linkType = string.split(":", linkData)
-        if linkType == "item"
-        or linkType == "spell"
-        or linkType == "enchant"
-        or linkType == "quest"
-        or linkType == "talent"
-        or linkType == "glyph"
-        or linkType == "unit"
-        or linkType == "achievement" then
-            GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
-            GameTooltip:SetHyperlink(linkData)
-            GameTooltip:Show()
-        else
-            print("hello")
-        end
-    end
-    local function hideTooltip()
-        GameTooltip:Hide()
-    end
-    local function showme(event)
-        print(event)
-    end
-
-    local function setOrHookHandler(frame, script, func)
-        if frame:GetScript(script) then -- check if it already has a            script handler...
-            frame:HookScript(script, func) -- ... Hook that script.
-        else
-            frame:SetScript(script, func) -- set our function as script handler
-        end
-    end
-
-    for i = 1, NUM_CHAT_WINDOWS do
-        local frame = getglobal("ChatFrame"..i) -- copy each chat frame
-        if frame then -- making sure frame is not null
-            setOrHookHandler(frame, "OnHyperLinkEnter", showTooltip)
-            setOrHookHandler(frame, "OnHyperLinkLeave", hideTooltip)
-            --setOrHookHandler(frame, "OnHyperlinkShow", showme("OnHyperlinkShow"))
-        end
-    end
-end
----------- 5 end
-
------ 6
+-- Shift right click hyper link menu
 function AcamarMessage:ShowAcamarPlayerEasyMenu(from_widget, name)
+
+    local function ForceAddPlayerToWL(name)
+        addon.db.global.wl[name] = true
+        addon:log(name .. L[" added to whitelist."])
+    end
+
+    local function ForceAddPlayerToBL(name)
+        addon.db.global.bl[name] = true
+        addon:log(name .. L[" added to blocklist."])
+    end
+
     local player_menu = {
         { text = L["Choose operation: |cff00cccc"] .. name , isTitle = true},
-        { text = L["To blocklist"], func = function() addon:log(name .. L[" added to blocklist"]); end },
-        { text = L["To whitelist"], func = function() addon:log(name .. L[" added to whitelist"]); end },
+        { text = L["Add to blocklist"], func = function() ForceAddPlayerToBL(name) end },
+        { text = L["Add to whitelist"], func = function() ForceAddPlayerToWL(name) end },
         { text = L["|cffff9900Cancel"], func = function() return; end },
     }
     local menuFrame = CreateFrame("Frame", "TopicMenuFrame", from_widget, "UIDropDownMenuTemplate")
@@ -316,11 +124,13 @@ function AcamarMessage:ShowAcamarPlayerEasyMenu(from_widget, name)
     EasyMenu(player_menu, menuFrame, "cursor", 0 , 0, "MENU");
 end
 
+-- ChatFrame_OnHyperlinkShow in Chatframe.lua
+-- The function of right click a hyper link in chat window
+-- Reason using this instead using self:RawHook("SetItemRef", true) it to
+-- avoid tainting of SetItemRef code
 function AcamarMessage:ChatFrame_OnHyperlinkShow(chat_frame, link, text, button)
-    addon:log("ChatFrame_OnHyperlinkShow: link=" .. link .. ", button=" .. button)
+    --addon:log("ChatFrame_OnHyperlinkShow: link=" .. link .. ", button=" .. button)
     if ( strsub(link, 1, 6) == "player" and button == "RightButton" ) then
-        addon:log("Right button on player link: " .. text)
-
         local pname = string.match(link, "player:([^:]+)")
         pname = string.match(pname, "([^-]+)")
 
@@ -328,18 +138,19 @@ function AcamarMessage:ChatFrame_OnHyperlinkShow(chat_frame, link, text, button)
         if shiftDown then
             self:ShowAcamarPlayerEasyMenu(chat_frame, pname)
         else
+            -- No need
             --SetItemRef(link, text, button, chat_frame);
         end
     end
 end
 
-function AcamarMessage:Hook6()
+function AcamarMessage:HookKeydownHyperlink()
     self:Hook("ChatFrame_OnHyperlinkShow", true)
     --self:RawHook("SetItemRef", true)
 end
+-------------------------
 
-------6
-
+-- Rewrite message
 local function RewriteMessage(ori)
     if (ori == nil) then
         return nil
@@ -491,8 +302,8 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
         local shortname = RemoveServerDash(from)
 
         -- if the player is in ignore list
-        if( addon.db.global.bl[shortname] ) then
-            -- addon:log(shortname .. " is in blacklist.")
+        if( addon.db.global.message_filter_switch and addon.db.global.bl[shortname] ) then
+            -- addon:log(shortname .. " is in blocklist.")
             return true
         end
 
@@ -513,7 +324,7 @@ local acamarFilter = function(self, event, message, from, lang, chan_id_name, pl
                 --addon:log("rewrite 1")
                 --modify = RewriteMessage(message)
                 return false, modifyMsg, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...
-            elseif block then
+            elseif addon.db.global.message_filter_switch and block then
                 return true
             else
                 --return false, modifyMsg, from, lang, chan_id_name, player_name_only, flag, chan_id, chan_num, chan_name, u, line_id, guid, ...

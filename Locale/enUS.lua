@@ -4,7 +4,7 @@ local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "enUS", true, silent)
 if not L then return end
 ------------------------------------------------------------------------------
 
-L["|cffffff00Click|r to toggle the acamar main window."] = true
+L["|cffffff00Click|r to toggle the acamar main window."] = "|cffca99ffClick|r to toggle the acamar main window, |cffca99ffright click|r for settings."
 
 L["Enter /acamar for Acamar engine main interface"] = true
 L["Found new possible spammer: "] = true
@@ -64,17 +64,25 @@ L["One player in one single line"] = true
 
 L["Show minimap icon"] = true
 
-L["Blacklist has synced."] = true
-L["Black list"] = true
-L["BL_DESC"] = "When you ignore a player, the player will synced to the list and their messages will be blocked. Click a player to remove from blacklist. Unlimited."
+L["Blocklist has synced."] = true
+L["Block list"] = true
+L["BL_DESC"] = "Ignored players will synced to the list and their messages will be blocked. Click a player to remove from blocklist. Unlimited. \n\n Some addons may interfere with this feature and result in blocklist cannot exceed 50， in that case, just using shift-rightclick on player in chat window to add to blocklist."
 L["Ignore list is empty."] = true
-L[" had been removed from blacklist."] = true
+L[" had been removed from blocklist."] = true
 
 L["MIN_INTERVAL_DESC"] = "Allow only 1 message by same player, or with same content by same player during certain period of seconds. Set to 0 to remove the limitation."
 L["Same player"] = true
 L["Allow only 1 message sent by same player during set interval (seconds)"] = true
 L["Same message"] = true
 L["Allow only 1 message with same content sent by same player during set interval (seconds)"] = "Allow only 1 message with same content in same channel sent by same player during set interval (seconds)"
+
+L["Choose operation: |cff00cccc"] = true
+L["Add to blocklist"] = true
+L["Add to whitelist"] = true
+L["|cffff9900Cancel"] = true
+
+L[" added to blocklist."] = true
+L[" added to whitelist."] = true
 
 -- logs
 L["Acamar control window opened."] = true

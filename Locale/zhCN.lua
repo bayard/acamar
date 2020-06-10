@@ -2,7 +2,7 @@ local addonName, _ = ...
 local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "zhCN")
 if not L then return end
 ------------------------------------------------------------------------------
-L["|cffffff00Click|r to toggle the Acamar main window."] = "|cffffff00点击|r图标打开Acamar控制窗口"
+L["|cffffff00Click|r to toggle the Acamar main window."] = "|cffca99ff点击|r图标打开Acamar控制窗口\n|cffca99ff右键点击|r打开选项"
 
 L["Enter /acamar for Acamar engine main interface"] = "输入 /acamar 打开Acamar自学习垃圾消息插件控制窗口"
 L["Found new possible spammer: "] = "发现新的垃圾消息发送者："
@@ -62,17 +62,25 @@ L["One player in one single line"] = "注意格式：一行一个用户"
 
 L["Show minimap icon"] = "在小地图边显示图标"
 
-L["Blacklist has synced."] = "黑名单已经更新。"
-L["Black list"] = "无限黑名单"
-L["BL_DESC"] = "被屏蔽的玩家列表，点击一个玩家把该玩家移出黑名单。通过系统功能添加的屏蔽玩家也会同步到这个列表，数量无限制。"
+L["Blocklist has synced."] = "屏蔽名单已经更新。"
+L["Block list"] = "无限屏蔽名单"
+L["BL_DESC"] = "点击一个玩家把该玩家移出屏蔽名单。通过系统功能添加的屏蔽玩家也会同步到这个列表。\n\n有些插件可能互相干扰导致屏蔽名单无法超过50，此时，可以通过按住SHIFT键，在聊天窗口右键点击玩家名字，选择'添加到屏蔽名单'来确保不受50的限制。"
 L["Ignore list is empty."] = "尚无被屏蔽的玩家。"
-L[" had been removed from blacklist."] = "已经被移出黑名单。"
+L[" had been removed from blocklist."] = "已经被移出屏蔽名单。"
 
 L["MIN_INTERVAL_DESC"] = "允许同一玩家，或者同一玩家的相同消息，在设定时间内只发能一次。设为0则取消该限制。"
 L["Same player"] = "同一玩家"
 L["Allow only 1 message sent by same player during set interval (seconds)"] = "在设定的秒数内，同一玩家只能发1条消息。"
 L["Same message"] = "相同消息"
 L["Allow only 1 message with same content sent by same player during set interval (seconds)"] = "在设定的秒数内，同一玩家在同一频道里只能发1条相同内容的消息。"
+
+L["Choose operation: |cff00cccc"] = "选择操作:"
+L["Add to blocklist"] = "添加到Acamar无限屏蔽名单"
+L["Add to whitelist"] = "添加到Acamar白名单"
+L["|cffff9900Cancel"] = "|cffff9900取消"
+
+L[" added to blocklist."] = "已添加至无限屏蔽名单。"
+L[" added to whitelist."] = "已添加至白名单"
 
 -- logs
 L["Acamar control window opened."] = "Acamar控制窗口已打开。"
@@ -82,8 +90,8 @@ L[" was talkative in last hour and added to learning process."] = "最近话多�
 L[" was talkative in last day and added to learning process."] = "最近一天话多起来，开始关注后续聊天信息。"
 L["Performing analysis on user behavior ..."] = "正在分析用户聊天行为数据..."
 L["Performing optimization on learning DB ..."] = "正在优化数据库..."
-L["Chat messages filtering started."] = "聊天信息过滤启用。"
-L["Chat messages filtering stopped, but learning engine still running."] = "聊天信息过滤停止，不过学习引擎继续运行。"
+L["Chat messages filtering started."] = "聊天过滤及屏蔽名单启用。"
+L["Chat messages filtering stopped, but learning engine still running."] = "聊天过滤及屏蔽名单停止，不过学习引擎继续运行。"
 L["Turn on learning engine..."] = "打开学习引擎..."
 L["Turn off learning engine..."] = "关闭学习引擎..."
 

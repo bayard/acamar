@@ -11,6 +11,12 @@ local fontName, fontHeight, fontFlags = DEFAULT_CHAT_FRAME:GetFont()
 function AcamarGUI:OnLogout()
 end
 
+function AcamarGUI:ShowSysSettings()
+    InterfaceOptionsFrame_Show()
+    InterfaceOptionsFrame_OpenToCategory(addonName);
+    InterfaceOptionsFrame_OpenToCategory(addonName);
+end
+
 function AcamarGUI:Load_Ace_Custom()
 	local frame = AceGUI:Create("AcamarFrame")
 
@@ -31,9 +37,7 @@ function AcamarGUI:Load_Ace_Custom()
   	-- When settings button clicked
 	frame:SetCallback("OnSettingsClick",
 		function(widget) 
-		    InterfaceOptionsFrame_Show()
-		    InterfaceOptionsFrame_OpenToCategory(addonName);
-		    InterfaceOptionsFrame_OpenToCategory(addonName);
+			addon.AcamarGUI:ShowSysSettings()
 		end)
   
   	-- When power button clicked

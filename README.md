@@ -4,18 +4,37 @@ Acamar learns player's chatting behavior and identify bots and spammers out from
 
 In most cases, 90 minutes after running, 90% spammer should be identified and could be blocked, and >95% spammer should be identified after running for 1 day. Spammers may change their ways to bypass the filering, but hit rate will remain high unless spammers' behavior act like normal users and thus makes they become not so annoying. 
 
-Highly talkative users may be identified as spammers, but they will be removed from blacklist after certain period of being less talkative, or filtering level could be set to less strict level to avoid blocking of these users.
+Highly talkative users may be identified as spammers, but they will be removed from blocklist after certain period of being less talkative, or filtering level could be set to less strict level to avoid blocking of these users.
 
-Acamar introduces the concept of dynamic blacklist: Once identified as spammer, the player will be banned for hours or days or years, depends on how heavy the player spammed, and will gradually return to normal once stop spamming.
+Acamar introduces the concept of dynamic blocklist: Once identified as spammer, the player will be banned for hours or days or years, depends on how heavy the player spammed, and will gradually return to normal once stop spamming.
 
 No configuration needed.
 
-Filtering applies to following messages:
+**Filtering applies to following messages:**
+
 1. Channel chat (Guild, team and Raid messages were ignored,)
 2. Say
 3. Yell
 4. Custom emote
 5. Whisper
+
+**Settings**
+
+1. Filtering level: Players with pam score greater than the level will be blocked
+2. Filered channels: Select which channels the filtering will applied to
+3. Do Not Disturb: Quiter mode
+4. Rewrite messages: Messages with repeated substring will be rewritten to shorter form
+5. Do not filter friends: Players belongs to same guild/party/raid or myself will not be filtered
+6. Minimap icon
+7. Limit max frequency of same player or same content
+
+**Unlimited blocklist and whitelist**
+
+Supports unlimited blacklist and whitelist.
+
+Adding or deleting of players from ignore list will synced to blocklist, and you can also SHIFT-RIGHTCLICK the player name in chat window to bring a popup menu to add the player to blocklist or whitelist.
+
+**API**
 
 For addon developer: If you intent to use Acamar Spam Engine as your message filter, API code sample:
 
@@ -53,12 +72,31 @@ Acamar引入一种概念叫动态黑名单，即：垃圾消息产生者根据�
 
 无需配置。
 
-过滤对下列消息有效：
+**过滤对下列消息有效：**
+
 1. 频道聊天，包括世界频道 (公会、组队、RAiD频道消息不会被过滤)
 2. 说话
 3. 大喊
 4. 自定义表情
 5. 私语
+
+**设置**
+
+1. 过滤级别：垃圾评分大于设定级别的用户将被屏蔽
+2. 过滤频道：可以选择哪些频道进行过滤
+3. 尽量勿扰：除非必要，否则将运行在更安静的模式
+4. 精简消息：重复啰嗦的消息会被简化
+5. 不过滤好友：自己、好友、团队以及小队里的成员可以排除过滤
+6. 支持小图标的显示及隐藏
+7. 同一用户以及同一内容的消息可以被限制发送的最大频度
+
+**无限黑名单和白名单**
+
+突破系统限制，支持无限黑名单和白名单
+
+在游戏中添加、删除屏蔽用户时，这些操作会同步到Acamar的屏蔽名单中。也可以通过按住SHIFT，然后右键点击聊天窗口的用户名打开一个菜单，将用户添加到屏蔽名单或者白名单中。
+
+**API**
 
 插件开发者可以通过下面的代码来使用Acamar API在自己开发的插件中过滤用户：
 

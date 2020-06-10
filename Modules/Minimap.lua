@@ -22,6 +22,8 @@ function AcamarMinimap:CreateMinimapIcon()
             OnClick = function(_, button)
                 if button == "LeftButton" then 
                     addon:UIToggle()
+                elseif button == "RightButton" then
+                    addon.AcamarGUI:ShowSysSettings()
                 end
             end,
 
