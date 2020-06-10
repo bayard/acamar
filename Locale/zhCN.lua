@@ -77,10 +77,14 @@ L["Allow only 1 message with same content sent by same player during set interva
 L["Choose operation: |cff00cccc"] = "选择操作:"
 L["Add to blocklist"] = "添加到Acamar无限屏蔽名单"
 L["Add to whitelist"] = "添加到Acamar白名单"
+L["Query spam score"] = "查询垃圾评分"
 L["|cffff9900Cancel"] = "|cffff9900取消"
 
 L[" added to blocklist."] = "已添加至无限屏蔽名单。"
 L[" added to whitelist."] = "已添加至白名单"
+
+L["'s spam score is "] = "的垃圾评分为"
+L[" doesn't classfied as spammer."] = "没有垃圾评分。"
 
 -- logs
 L["Acamar control window opened."] = "Acamar控制窗口已打开。"

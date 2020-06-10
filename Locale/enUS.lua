@@ -79,10 +79,13 @@ L["Allow only 1 message with same content sent by same player during set interva
 L["Choose operation: |cff00cccc"] = true
 L["Add to blocklist"] = true
 L["Add to whitelist"] = true
+L["Query spam score"] = true
 L["|cffff9900Cancel"] = true
 
 L[" added to blocklist."] = true
 L[" added to whitelist."] = true
+L["'s spam score is "] = true
+L[" doesn't classfied as spammer."] = true
 
 -- logs
 L["Acamar control window opened."] = true
