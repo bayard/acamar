@@ -35,6 +35,7 @@ function AcamarMinimap:CreateMinimapIcon()
             OnLeave = HideTooltip
         })
         if LDBIcon then
+            addon.db.global.minimap = addon.db.global.minimap or {}
             LDBIcon:Register(addonName, MinimapBtn, addon.db.global.minimap)
         end
     end
