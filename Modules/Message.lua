@@ -148,22 +148,29 @@ end
 -- avoid tainting of SetItemRef code
 function AcamarMessage:ChatFrame_OnHyperlinkShow(chat_frame, link, text, button)
     --addon:log("ChatFrame_OnHyperlinkShow: link=" .. link .. ", button=" .. button)
-    if ( strsub(link, 1, 6) == "player" and button == "RightButton" ) then
-        local pname = string.match(link, "player:([^:]+)")
-        pname = string.match(pname, "([^-]+)")
 
-        local shiftDown = IsShiftKeyDown()
-        if shiftDown then
-            self:ShowAcamarPlayerEasyMenu(chat_frame, pname)
-        else
-            -- No need
-            --SetItemRef(link, text, button, chat_frame);
+    if button == "RightButton" then
+        if ( strsub(link, 1, 6) == "player" ) then
+            local pname = string.match(link, "player:([^:]+)")
+            pname = string.match(pname, "([^-]+)")
+
+            local shiftDown = IsShiftKeyDown()
+            if shiftDown then
+                self:ShowAcamarPlayerEasyMenu(chat_frame, pname)
+            end
         end
     end
+
+    -- If using self:Hook, comment following line because self:Hook don't need to execute original function
+    self.hooks.ChatFrame_OnHyperlinkShow(chat_frame, link, text, button)
+
 end
 
 function AcamarMessage:HookKeydownHyperlink()
-    self:Hook("ChatFrame_OnHyperlinkShow", true)
+    --self:Hook("ChatFrame_OnHyperlinkShow", true)
+
+    self:RawHook("ChatFrame_OnHyperlinkShow", true)
+
     --self:RawHook("SetItemRef", true)
 end
 -------------------------
