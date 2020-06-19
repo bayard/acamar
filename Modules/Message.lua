@@ -162,14 +162,16 @@ function AcamarMessage:ChatFrame_OnHyperlinkShow(chat_frame, link, text, button)
     end
 
     -- If using self:Hook, comment following line because self:Hook don't need to execute original function
-    self.hooks.ChatFrame_OnHyperlinkShow(chat_frame, link, text, button)
+    -- self.hooks.ChatFrame_OnHyperlinkShow(chat_frame, link, text, button)
 
 end
 
 function AcamarMessage:HookKeydownHyperlink()
     --self:Hook("ChatFrame_OnHyperlinkShow", true)
 
-    self:RawHook("ChatFrame_OnHyperlinkShow", true)
+    -- self:RawHook("ChatFrame_OnHyperlinkShow", true)
+
+    self:SecureHook("ChatFrame_OnHyperlinkShow")
 
     --self:RawHook("SetItemRef", true)
 end
