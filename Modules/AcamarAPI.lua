@@ -14,6 +14,13 @@ function AcamarAPI:IsBlock(guid)
 	return addon.FilterProcessor:IsBlock(guid)
 end
 
+-- Is in blocklist
+function AcamarAPI:IsBL(shortname)
+	if( addon.db.global.message_filter_switch and addon.db.global.bl[shortname] ) then
+		return true
+	end
+end
+
 function AcamarAPI:SpamScore(guid)
 	return addon.FilterProcessor:SpamScore(guid)
 end
