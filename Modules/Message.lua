@@ -26,6 +26,7 @@ if(addonName ~= nil) then
             "CHAT_MSG_YELL",
             "CHAT_MSG_EMOTE",
             "CHAT_MSG_WHISPER",
+            "CHAT_MSG_TEXT_EMOTE",
         },
         [addon.MSG_FILTER_CHANNEL_SET_PLUS_PARTY_RAID] = {
             "CHAT_MSG_CHANNEL",
@@ -33,6 +34,7 @@ if(addonName ~= nil) then
             "CHAT_MSG_YELL",
             "CHAT_MSG_EMOTE",
             "CHAT_MSG_WHISPER",
+            "CHAT_MSG_TEXT_EMOTE",
             "CHAT_MSG_PARTY",
             "CHAT_MSG_RAID",
         },
@@ -42,6 +44,7 @@ if(addonName ~= nil) then
             "CHAT_MSG_YELL",
             "CHAT_MSG_EMOTE",
             "CHAT_MSG_WHISPER",
+            "CHAT_MSG_TEXT_EMOTE",
             "CHAT_MSG_GUILD",
         },
         [addon.MSG_FILTER_CHANNEL_SET_PLUS_BOTH] = {
@@ -50,6 +53,7 @@ if(addonName ~= nil) then
             "CHAT_MSG_YELL",
             "CHAT_MSG_EMOTE",
             "CHAT_MSG_WHISPER",
+            "CHAT_MSG_TEXT_EMOTE",
             "CHAT_MSG_GUILD",
             "CHAT_MSG_PARTY",
             "CHAT_MSG_RAID",
