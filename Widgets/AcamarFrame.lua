@@ -224,7 +224,7 @@ local function Constructor()
 	local minWidth = 80
 	local minHeight = 50
 
-	local frame = CreateFrame("Frame", nil, UIParent)
+	local frame = CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate")
 	frame:Hide()
 
 	frame:EnableMouse(true)
